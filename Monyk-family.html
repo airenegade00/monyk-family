@@ -5,6 +5,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800;900&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>MONYK Family</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1B1B23">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MONYK Family">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
@@ -5331,6 +5337,15 @@ initFirebaseAuth().then(() => {
     attachFamilyListeners(currentFamilyId);
   }
 });
+
+// ── PWA: service worker regisztralas ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(e =>
+      console.warn('[MONYK Family] Service worker regisztracio hiba:', e)
+    );
+  });
+}
 
 function saveLS() {
   try {
