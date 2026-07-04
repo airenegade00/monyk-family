@@ -2596,14 +2596,17 @@ async function joinFamilyByCode(code) {
 
   const { familyId } = codeDoc.data();
   const familyRef = db.collection('families').doc(familyId);
-  const familyDoc = await familyRef.get();
-  if (!familyDoc.exists) throw new Error('A család már nem létezik');
 
+  // Előbb írjuk be magunkat tagnak (uid alapján ezt a security rules engedi),
+  // csak utána olvassuk be a család adatait — mert az olvasáshoz már tagság kell.
   await familyRef.collection('members').doc(currentUid).set({
     deviceName: getDeviceName(),
     joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
     role: 'parent'
   });
+
+  const familyDoc = await familyRef.get();
+  if (!familyDoc.exists) throw new Error('A család már nem létezik');
 
   currentFamilyId = familyId;
   localStorage.setItem('monyk_family_id', familyId);
