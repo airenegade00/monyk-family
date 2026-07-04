@@ -1271,6 +1271,13 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
   </div>
   <div class="so-body">
 
+    <!-- 0. CSALÁD VÁLTÁS ──────────────────────────────────── -->
+    <div class="so-section">
+      <div class="so-section-lbl">👪 Család</div>
+      <div id="soFamilyName" style="font-size:13px;color:var(--muted);margin-bottom:8px;"></div>
+      <button class="so-add-kid-btn" onclick="closeSettings();confirmLeaveFamily()">🔁 Másik családba lépés / kilépés</button>
+    </div>
+
     <!-- 1. FAMÍLIA TÉMA -->
     <div class="so-section">
       <div class="so-section-lbl" id="so-lbl-tema">🎨 Család téma</div>
@@ -2507,6 +2514,24 @@ const db = firebase.firestore();
 
 let currentUid = null;
 let currentFamilyId = localStorage.getItem('monyk_family_id') || null;
+let currentFamilyName = '';
+
+function confirmLeaveFamily() {
+  const ok = window.confirm(
+    'Biztosan kilepsz a jelenlegi csaladbol ezen az eszkozon? ' +
+    'A csalad adatai megmaradnak a Firestore-ban, csak ezen a telefonon kell majd ujra ' +
+    'megadnod egy kodot, vagy uj csaladot letrehoznod.'
+  );
+  if (!ok) return;
+  if (unsubKids) unsubKids();
+  if (unsubEntries) unsubEntries();
+  localStorage.removeItem('monyk_family_id');
+  currentFamilyId = null;
+  kids.splice(0, kids.length);
+  items.splice(0, items.length);
+  renderAll();
+  showFamilyPairingUI();
+}
 
 // Bejelentkezés indításkor (anonim) — csak ez fut, nincs login képernyő
 function initFirebaseAuth() {
@@ -2743,6 +2768,7 @@ async function fpDoCreate() {
   if (!name) { errEl.textContent = 'Adj meg egy nevet.'; return; }
   try {
     const { inviteCode } = await createFamily(name, true);
+    currentFamilyName = name;
     fpShowStep('fpStepDone');
     showInviteCodeUI('fpQrContainer', inviteCode);
   } catch (e) {
@@ -2758,7 +2784,8 @@ async function fpDoJoin() {
   errEl.textContent = '';
   if (!/^\d{6}$/.test(code)) { errEl.textContent = 'A kód 6 számból áll.'; return; }
   try {
-    await joinFamilyByCode(code);
+    const { familyName } = await joinFamilyByCode(code);
+    currentFamilyName = familyName;
     fpFinish();
   } catch (e) {
     console.error('[MONYK Family] joinFamilyByCode hiba:', e);
@@ -5060,6 +5087,9 @@ function openSettings() {
   el('so-btn-ujgyerek',  t('ujGyerek'));
   el('so-save-btn',      t('mentesGomb'));
 
+  const famNameEl = document.getElementById('soFamilyName');
+  if (famNameEl) famNameEl.textContent = currentFamilyName ? `Jelenlegi csalad: ${currentFamilyName}` : '';
+
   // App téma
   document.getElementById('soAppTheme').innerHTML = APP_THEMES.map(th=>`
     <div class="app-theme-card${activeAppTheme===th.id?' on':''}" data-id="${th.id}" onclick="setAppTheme('${th.id}')">
@@ -5292,6 +5322,9 @@ initFirebaseAuth().then(() => {
     showFamilyPairingUI();
   } else {
     console.log('[MONYK Family] Bejelentkezve, csalad:', currentFamilyId);
+    db.collection('families').doc(currentFamilyId).get().then(doc => {
+      if (doc.exists) currentFamilyName = doc.data().name || '';
+    }).catch(e => console.warn('[MONYK Family] Csalad nev lekeres hiba:', e));
     attachFamilyListeners(currentFamilyId);
   }
 });
