@@ -2617,7 +2617,63 @@ function showInviteCodeUI(containerId, code) {
   } catch (e) { console.warn('[MONYK Family] QR generalas hiba:', e); }
 }
 
-// ── CSALÁD PAIRING ONBOARDING ──────────────────────────────
+// ── FIRESTORE onSnapshot → régi kids/items tömbök feltöltése ──
+// Megjegyzés: a régi riport-függvények egy része (pl. rip-diagram) 2 gyerekre,
+// kids[0]/kids[1]-re épít fixen. Ez egy meglévő korlátozás, ezt most nem bontjuk szét —
+// 2 gyereknél működik, 3+ gyereknél a riport-rész pontatlan lehet.
+const KID_COLORS = ['#3F5D3A', '#8A6A2A', '#A6332B', '#1B4F72', '#6C3483'];
+const KID_ICONS  = ['👦', '👧', '🧒', '👶', '🧑'];
+
+let unsubKids = null;
+let unsubEntries = null;
+
+function attachFamilyListeners(familyId) {
+  if (unsubKids) unsubKids();
+  if (unsubEntries) unsubEntries();
+
+  const familyRef = db.collection('families').doc(familyId);
+
+  unsubKids = familyRef.collection('kids').onSnapshot(snap => {
+    const newKids = [];
+    snap.forEach((doc, idx) => {
+      const d = doc.data();
+      newKids.push({
+        id: idx,
+        firestoreId: doc.id,
+        nev: d.nev || '',
+        ikon: d.ikon || KID_ICONS[idx % KID_ICONS.length],
+        color: d.color || KID_COLORS[idx % KID_COLORS.length],
+        zsebpenz: (d.zsebpenz && d.zsebpenz.osszeg) || 0,
+        szuletesiDatum: d.szuletesiDatum || '',
+        iskola: d.iskola || '',
+        paid: false
+      });
+    });
+    kids.splice(0, kids.length, ...newKids);
+    renderAll();
+  }, err => console.error('[MONYK Family] kids onSnapshot hiba:', err));
+
+  unsubEntries = familyRef.collection('entries').onSnapshot(snap => {
+    const newItems = [];
+    snap.forEach((doc, idx) => {
+      const d = doc.data();
+      const kidIdx = kids.findIndex(k => k.firestoreId === d.kidId);
+      newItems.push({
+        id: idx,
+        firestoreId: doc.id,
+        gyerek: kidIdx >= 0 ? kidIdx : 0,
+        nev: d.nev || '',
+        osszeg: d.osszeg || 0,
+        kat: d.kategoria || '',
+        datum: d.timestamp && d.timestamp.toDate ? d.timestamp.toDate().toISOString().slice(0,10) : new Date().toISOString().slice(0,10),
+        paid: !!d.paid,
+        rec: false
+      });
+    });
+    items.splice(0, items.length, ...newItems);
+    renderAll();
+  }, err => console.error('[MONYK Family] entries onSnapshot hiba:', err));
+}
 function showFamilyPairingUI() {
   if (document.getElementById('familyPairing')) return;
   const el = document.createElement('div');
@@ -2713,6 +2769,7 @@ async function fpDoJoin() {
 function fpFinish() {
   const el = document.getElementById('familyPairing');
   if (el) el.remove();
+  if (currentFamilyId) attachFamilyListeners(currentFamilyId);
 }
 
 // ── TAB NAV ──
@@ -5235,7 +5292,7 @@ initFirebaseAuth().then(() => {
     showFamilyPairingUI();
   } else {
     console.log('[MONYK Family] Bejelentkezve, csalad:', currentFamilyId);
-    // Ide kerul majd az onSnapshot listenerek bekotese (kids, entries, elfoglaltsagok)
+    attachFamilyListeners(currentFamilyId);
   }
 });
 
