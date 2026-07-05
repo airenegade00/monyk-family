@@ -2782,7 +2782,7 @@ async function fpDoCreate() {
     showInviteCodeUI('fpQrContainer', inviteCode);
   } catch (e) {
     console.error('[MONYK Family] createFamily hiba:', e);
-    errEl.textContent = 'Hiba történt, próbáld újra.';
+    errEl.textContent = 'Hiba: ' + (e.code || '') + ' ' + (e.message || e);
   }
 }
 
@@ -2798,7 +2798,7 @@ async function fpDoJoin() {
     fpFinish();
   } catch (e) {
     console.error('[MONYK Family] joinFamilyByCode hiba:', e);
-    errEl.textContent = 'Érvénytelen kód, vagy a család már nem létezik.';
+    errEl.textContent = 'Hiba: ' + (e.code || '') + ' ' + (e.message || e);
   }
 }
 
