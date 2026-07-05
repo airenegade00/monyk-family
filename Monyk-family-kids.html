@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;700;800;900&family=Fraunces:opsz,wght@9..144,700;9..144,900&family=JetBrains+Mono:wght@600;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>MONYK Kids</title>
+<meta name="theme-color" content="#E8722C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MONYK Kids">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<style>
+/* ══════════════════════════════════════════════════════════
+   MONYK KIDS — önálló, gyerek-fókuszú napló app
+   Firebase projekt: monyk-family-7e1e5 (közös a szülői MONYK Family appal)
+   Terminológia: NINCS "egyenleg"/"tranzakció" — helyette "mennyid van", "napló", "bejegyzés"
+   ══════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#FFF8EF; --bg2:#FFFFFF; --bg3:#FFEDD9;
+  --acc:#E8722C; --acc2:#C1521A; --teal:#1C8C7A; --border:#F3DCC0;
+  --text:#2E2015; --muted:#9A8770;
+  --green:#1C8C7A; --warn:#D6A02E; --red:#D6483F;
+  --hero:linear-gradient(135deg,#C1521A 0%,#E8722C 55%,#F5A25C 100%);
+  --font-body:'Bricolage Grotesque',sans-serif; --font-display:'Fraunces',serif; --font-mono:'JetBrains Mono',monospace;
+  --sab:env(safe-area-inset-bottom,0px);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+.shell{position:fixed;inset:0;display:flex;flex-direction:column;max-width:430px;margin:0 auto;background:var(--bg);}
+button{font-family:inherit;}
+
+/* ─── PAIRING SCREEN ─── */
+#pairScreen{position:fixed;inset:0;z-index:100;background:var(--hero);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:28px;text-align:center;}
+.pr-logo{font-size:26px;font-weight:900;color:#fff;letter-spacing:1px;margin-bottom:2px;}
+.pr-logo b{color:#FFE3C4;}
+.pr-sub{font-size:13px;color:rgba(255,255,255,.85);margin-bottom:28px;max-width:280px;line-height:1.5;}
+.pr-card{background:#fff;border-radius:20px;padding:22px;width:100%;max-width:320px;box-shadow:0 12px 30px rgba(0,0,0,.18);}
+.pr-card-lbl{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+.pr-code-input{width:100%;font-family:var(--font-mono);font-size:28px;font-weight:800;letter-spacing:6px;
+  text-align:center;border:2px solid var(--border);border-radius:14px;padding:12px 8px;color:var(--text);
+  background:var(--bg);outline:none;}
+.pr-code-input:focus{border-color:var(--acc);}
+.pr-btn{width:100%;padding:14px;border-radius:14px;border:none;font-size:14.5px;font-weight:900;
+  cursor:pointer;margin-top:12px;}
+.pr-btn.primary{background:var(--acc);color:#fff;}
+.pr-btn.primary:disabled{opacity:.4;}
+.pr-btn.ghost{background:transparent;color:var(--acc2);border:1.5px solid var(--border);}
+.pr-error{color:#ffd9d9;background:rgba(214,72,63,.25);border:1px solid rgba(255,255,255,.3);
+  border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;margin-top:14px;max-width:300px;}
+.pr-hint{font-size:11px;color:rgba(255,255,255,.7);margin-top:16px;max-width:280px;line-height:1.5;}
+
+/* ─── QR SCAN OVERLAY ─── */
+#qrOverlay{position:fixed;inset:0;z-index:9700;background:#000;display:none;flex-direction:column;}
+#qrOverlay.open{display:flex;}
+#qrVideo{flex:1;width:100%;object-fit:cover;}
+.qr-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:220px;height:220px;
+  border:3px solid #fff;border-radius:20px;box-shadow:0 0 0 2000px rgba(0,0,0,.45);}
+.qr-close{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.15);border:none;
+  color:#fff;font-size:20px;width:40px;height:40px;border-radius:50%;z-index:2;}
+.qr-msg{position:absolute;bottom:40px;left:0;right:0;text-align:center;color:#fff;font-size:13px;font-weight:700;}
+
+/* ─── MAIN SCREEN HEADER ─── */
+#mainScreen{display:none;flex-direction:column;height:100%;}
+#mainScreen.open{display:flex;}
+.header{background:var(--hero);flex-shrink:0;padding:16px 18px 18px;color:#fff;}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.h-logo{font-size:15px;font-weight:900;letter-spacing:2px;color:rgba(255,255,255,.85);}
+.h-settings{background:rgba(255,255,255,.15);border:none;color:#fff;font-size:16px;width:34px;height:34px;
+  border-radius:10px;cursor:pointer;}
+.h-kid{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.h-av{font-size:38px;}
+.h-name{font-size:19px;font-weight:900;}
+.h-sub{font-size:11px;color:rgba(255,255,255,.75);}
+.balance-card{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:16px;
+  padding:14px 16px;}
+.bc-lbl{font-size:10px;font-weight:800;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;}
+.bc-amt{font-family:var(--font-mono);font-size:28px;font-weight:800;color:#fff;}
+.bc-sub{display:flex;gap:14px;margin-top:8px;}
+.bc-sub-item{font-size:11px;font-weight:700;color:rgba(255,255,255,.9);}
+
+/* ─── ENTRY LIST ─── */
+.body{flex:1;overflow-y:auto;padding:16px 16px calc(90px + var(--sab));scrollbar-width:none;}
+.body::-webkit-scrollbar{display:none;}
+.sec-lbl{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;
+  margin:14px 0 8px;}
+.sec-lbl:first-child{margin-top:0;}
+.entry{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1.5px solid var(--border);
+  border-radius:16px;padding:12px 14px;margin-bottom:8px;}
+.entry-ico{font-size:22px;width:38px;height:38px;border-radius:11px;display:flex;align-items:center;
+  justify-content:center;background:var(--bg3);flex-shrink:0;}
+.entry-info{flex:1;min-width:0;}
+.entry-name{font-size:13.5px;font-weight:800;}
+.entry-sub{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.entry-amt{font-family:var(--font-mono);font-size:14px;font-weight:800;flex-shrink:0;}
+.entry-amt.in{color:var(--green);}
+.entry-amt.out{color:var(--red);}
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+.empty-state .es-ico{font-size:44px;margin-bottom:10px;}
+.empty-state .es-txt{font-size:13px;font-weight:700;}
+
+/* ─── FAB + ADD MODAL ─── */
+.fab{position:fixed;bottom:calc(24px + var(--sab));left:50%;transform:translateX(-50%);
+  width:calc(100% - 40px);max-width:390px;padding:15px;background:var(--acc);color:#fff;border:none;
+  border-radius:16px;font-size:14.5px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px rgba(232,114,44,.35);
+  z-index:50;}
+.modal-bg{position:fixed;inset:0;background:rgba(20,10,0,.45);z-index:8000;display:none;
+  align-items:flex-end;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--bg2);width:100%;max-height:88vh;overflow-y:auto;border-radius:22px 22px 0 0;
+  padding:18px 18px calc(20px + var(--sab));}
+.modal-title{font-size:16px;font-weight:900;margin-bottom:14px;text-align:center;}
+.type-toggle{display:flex;background:var(--bg3);border-radius:14px;padding:4px;margin-bottom:14px;}
+.type-btn{flex:1;padding:10px;border:none;background:transparent;border-radius:11px;font-size:13px;
+  font-weight:800;color:var(--muted);cursor:pointer;}
+.type-btn.on.in{background:var(--green);color:#fff;}
+.type-btn.on.out{background:var(--red);color:#fff;}
+.field-lbl{font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;
+  margin:12px 0 6px;}
+.amt-input{width:100%;font-family:var(--font-mono);font-size:26px;font-weight:800;text-align:center;
+  border:2px solid var(--border);border-radius:14px;padding:12px;background:var(--bg);color:var(--text);outline:none;}
+.amt-input:focus{border-color:var(--acc);}
+.txt-input{width:100%;font-size:14px;font-weight:600;border:1.5px solid var(--border);border-radius:12px;
+  padding:11px 13px;background:var(--bg);color:var(--text);outline:none;}
+.txt-input:focus{border-color:var(--acc);}
+.chip-row{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{padding:8px 13px;border-radius:20px;font-size:12.5px;font-weight:700;background:var(--bg3);
+  border:1.5px solid var(--border);color:var(--text);cursor:pointer;}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff;}
+.save-btn{width:100%;padding:14px;background:var(--acc);color:#fff;border:none;border-radius:14px;
+  font-size:14.5px;font-weight:900;cursor:pointer;margin-top:18px;}
+.save-btn:disabled{opacity:.4;}
+.cancel-btn{width:100%;padding:12px;background:transparent;color:var(--muted);border:none;
+  font-size:13px;font-weight:700;cursor:pointer;margin-top:6px;}
+
+/* ─── SETTINGS OVERLAY ─── */
+.settings-ov{position:fixed;inset:0;background:rgba(20,10,0,.45);z-index:8100;display:none;
+  align-items:flex-end;}
+.settings-ov.open{display:flex;}
+.settings-card{background:var(--bg2);width:100%;border-radius:22px 22px 0 0;padding:18px 18px calc(20px + var(--sab));}
+.settings-row{display:flex;align-items:center;gap:12px;padding:13px 4px;border-bottom:1px solid var(--border);
+  font-size:13.5px;font-weight:700;cursor:pointer;}
+.settings-row:last-child{border-bottom:none;color:var(--red);}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ═══ PÁROSÍTÁS KÉPERNYŐ ═══ -->
+  <div id="pairScreen">
+    <div class="pr-logo">MONYK <b>KIDS</b></div>
+    <div class="pr-sub">A szülőd tud generálni neked egy kódot a MONYK Family appban.
+      Írd be, vagy olvasd be a QR-t, hogy elkezdhesd a saját naplódat!</div>
+    <div class="pr-card">
+      <div class="pr-card-lbl">Add meg a kódot</div>
+      <input class="pr-code-input" id="codeInput" maxlength="6" inputmode="numeric" placeholder="000000">
+      <button class="pr-btn primary" id="joinBtn" disabled onclick="redeemManualCode()">Csatlakozás</button>
+      <button class="pr-btn ghost" onclick="openQrScan()">📷 QR-kód beolvasása</button>
+    </div>
+    <div class="pr-hint">Nem tudod a kódot? Kérd meg anyát vagy apát, hogy nyissa meg a MONYK Family
+      appban a profilodat, és nyomja meg a „Gyerek eszköz párosítása” gombot.</div>
+  </div>
+
+  <!-- ═══ QR SCAN OVERLAY ═══ -->
+  <div id="qrOverlay">
+    <button class="qr-close" onclick="closeQrScan()">✕</button>
+    <video id="qrVideo" playsinline muted></video>
+    <div class="qr-frame"></div>
+    <div class="qr-msg" id="qrMsg">Tartsd a kódot a keretbe</div>
+  </div>
+
+  <!-- ═══ FŐ KÉPERNYŐ ═══ -->
+  <div id="mainScreen">
+    <div class="header">
+      <div class="header-top">
+        <div class="h-logo">MONYK KIDS</div>
+        <button class="h-settings" onclick="openSettings()">⚙️</button>
+      </div>
+      <div class="h-kid">
+        <div class="h-av" id="kidAvatar">🧒</div>
+        <div>
+          <div class="h-name" id="kidName">–</div>
+          <div class="h-sub">Ez a te saját naplód</div>
+        </div>
+      </div>
+      <div class="balance-card">
+        <div class="bc-lbl">Mennyid van most</div>
+        <div class="bc-amt" id="balanceAmt">0 Ft</div>
+        <div class="bc-sub">
+          <div class="bc-sub-item">⬆️ <span id="totalIn">0</span> Ft bevétel</div>
+          <div class="bc-sub-item">⬇️ <span id="totalOut">0</span> Ft kiadás</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="body" id="entriesBody">
+      <div class="empty-state"><div class="es-ico">📝</div><div class="es-txt">Még nincs bejegyzésed.<br>Nyomd meg a gombot lent, és rögzítsd az elsőt!</div></div>
+    </div>
+
+    <button class="fab" onclick="openAddModal()">＋ Új bejegyzés</button>
+  </div>
+
+  <!-- ═══ ÚJ BEJEGYZÉS MODAL ═══ -->
+  <div class="modal-bg" id="addModalBg">
+    <div class="modal">
+      <div class="modal-title">Új bejegyzés</div>
+      <div class="type-toggle">
+        <button class="type-btn in" id="typeInBtn" onclick="selType('bevetel')">⬆️ Bevétel</button>
+        <button class="type-btn out" id="typeOutBtn" onclick="selType('kiadas')">⬇️ Kiadás</button>
+      </div>
+      <div class="field-lbl">Mennyi?</div>
+      <input class="amt-input" id="amtInput" inputmode="numeric" placeholder="0" oninput="validateAdd()">
+      <div class="field-lbl" id="catLbl">Kategória</div>
+      <div class="chip-row" id="catChips"></div>
+      <div class="field-lbl">Mi ez? (nem kötelező)</div>
+      <input class="txt-input" id="nameInput" placeholder="Pl. mozijegy, szülinapi pénz…">
+      <button class="save-btn" id="saveEntryBtn" disabled onclick="saveEntry()">Mentés</button>
+      <button class="cancel-btn" onclick="closeAddModal()">Mégse</button>
+    </div>
+  </div>
+
+  <!-- ═══ BEÁLLÍTÁSOK OVERLAY ═══ -->
+  <div class="settings-ov" id="settingsOv">
+    <div class="settings-card">
+      <div class="settings-row" onclick="closeSettings()">ℹ️ &nbsp; Verzió: MONYK Kids v1</div>
+      <div class="settings-row" onclick="unpairDevice()">🚪 &nbsp; Kijelentkezés / leválasztás</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// FIREBASE INIT — ugyanaz a projekt, mint a MONYK Family app
+// ══════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyCrr6We4d7Co2TSgFppl_vednHEMk0CQs0",
+  authDomain: "monyk-family-7e1e5.firebaseapp.com",
+  projectId: "monyk-family-7e1e5",
+  storageBucket: "monyk-family-7e1e5.firebasestorage.app",
+  messagingSenderId: "430910839646",
+  appId: "1:430910839646:web:9cdddb5f88d6f167890dcf"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const db = firebase.firestore();
+
+let currentUid = null;
+let familyId = localStorage.getItem('monyk_kid_family_id') || null;
+let kidId = localStorage.getItem('monyk_kid_id') || null;
+let unsubEntries = null, unsubKidDoc = null;
+let entries = [];
+let addType = 'kiadas';
+let selectedCat = null;
+
+const OUT_CATS = [
+  { id:'edesseg', ikon:'🍬', lbl:'Édesség' },
+  { id:'jatek',   ikon:'🎮', lbl:'Játék' },
+  { id:'ruha',    ikon:'👕', lbl:'Ruha' },
+  { id:'ajandek', ikon:'🎁', lbl:'Ajándék vásárlás' },
+  { id:'szorakozas', ikon:'🎬', lbl:'Szórakozás' },
+  { id:'egyeb',   ikon:'📦', lbl:'Egyéb' }
+];
+const IN_CATS = [
+  { id:'zsebpenz', ikon:'💰', lbl:'Zsebpénz' },
+  { id:'ajandekpenz', ikon:'🎂', lbl:'Ajándékpénz' },
+  { id:'rokon',   ikon:'👵', lbl:'Rokontól kapott' },
+  { id:'munka',   ikon:'🧹', lbl:'Alkalmi munka' },
+  { id:'egyeb',   ikon:'📦', lbl:'Egyéb' }
+];
+
+function initAuth() {
+  return new Promise(resolve => {
+    fbAuth.onAuthStateChanged(user => {
+      if (user) { currentUid = user.uid; resolve(user.uid); }
+      else fbAuth.signInAnonymously().catch(e => console.error('[MONYK Kids] Auth hiba:', e));
+    });
+  });
+}
+
+(async function boot() {
+  await initAuth();
+  if (familyId && kidId) {
+    attachKidListeners();
+    showMainScreen();
+  } else {
+    document.getElementById('pairScreen').style.display = 'flex';
+  }
+})();
+
+// ── KÓD BEVITEL / VALIDÁCIÓ ──
+document.getElementById('codeInput').addEventListener('input', function() {
+  this.value = this.value.replace(/\D/g,'').slice(0,6);
+  document.getElementById('joinBtn').disabled = this.value.length !== 6;
+});
+
+async function redeemManualCode() {
+  const code = document.getElementById('codeInput').value.trim();
+  if (code.length !== 6) return;
+  await redeemCode(code, null);
+}
+
+// ── KÓD BEVÁLTÁSA ──
+// Ha familyIdHint ismert (QR-ből), közvetlenül oda megyünk; kézi kód esetén
+// collectionGroup lekérdezéssel keressük meg, melyik családhoz tartozik.
+// MEGJEGYZÉS (2026-07-05): a collectionGroup('kidInviteCodes').where('code','==',...)
+// lekérdezéshez Firestore-ban be kell kapcsolni a 'code' mezőre a collection-group
+// hatókörű indexet (Firebase Console → Firestore → Indexek) — ELSŐ ÉLŐ TESZTNÉL
+// valószínűleg egy hibaüzenetben kapott linkre kattintva létre kell hozni.
+async function redeemCode(code, familyIdHint) {
+  setPairError('');
+  setJoinLoading(true);
+  try {
+    let famId = familyIdHint;
+    let codeDoc;
+    if (famId) {
+      codeDoc = await db.collection('families').doc(famId).collection('kidInviteCodes').doc(code).get();
+    } else {
+      const snap = await db.collectionGroup('kidInviteCodes').where('code', '==', code).limit(1).get();
+      if (snap.empty) throw new Error('NOTFOUND');
+      codeDoc = snap.docs[0];
+      famId = codeDoc.data().familyId;
+    }
+    if (!codeDoc.exists) throw new Error('NOTFOUND');
+    const data = codeDoc.data();
+    if (data.expiresAt && Date.now() > data.expiresAt) throw new Error('EXPIRED');
+
+    const familyRef = db.collection('families').doc(famId);
+    const kRef = familyRef.collection('kids').doc(data.kidId);
+    await kRef.update({ kidUid: currentUid });
+    await familyRef.collection('kidInviteCodes').doc(codeDoc.id).delete();
+
+    familyId = famId; kidId = data.kidId;
+    localStorage.setItem('monyk_kid_family_id', familyId);
+    localStorage.setItem('monyk_kid_id', kidId);
+    attachKidListeners();
+    showMainScreen();
+  } catch (e) {
+    console.error('[MONYK Kids] Kod beváltás hiba:', e);
+    if (e.message === 'NOTFOUND') setPairError('Nem található ilyen kód. Kérj újat a szülődtől!');
+    else if (e.message === 'EXPIRED') setPairError('Ez a kód már lejárt. Kérj újat a szülődtől!');
+    else setPairError('Hiba történt, ellenőrizd az internetkapcsolatot és próbáld újra.');
+  }
+  setJoinLoading(false);
+}
+
+function setPairError(msg) {
+  let el = document.querySelector('.pr-error');
+  if (!msg) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'pr-error';
+    document.querySelector('.pr-card').appendChild(el);
+  }
+  el.textContent = msg;
+}
+function setJoinLoading(loading) {
+  const b = document.getElementById('joinBtn');
+  b.textContent = loading ? 'Csatlakozás…' : 'Csatlakozás';
+  b.disabled = loading || document.getElementById('codeInput').value.length !== 6;
+}
+
+// ── QR SZKENNELÉS (jsQR, ugyanaz a minta, mint a szülő appban) ──
+let qrStream = null, qrRAF = null;
+function openQrScan() {
+  const overlay = document.getElementById('qrOverlay');
+  const video = document.getElementById('qrVideo');
+  overlay.classList.add('open');
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      qrStream = stream;
+      video.srcObject = stream;
+      video.play();
+      qrRAF = requestAnimationFrame(scanFrame);
+    })
+    .catch(e => {
+      document.getElementById('qrMsg').textContent = 'Nincs hozzáférés a kamerához.';
+      console.error('[MONYK Kids] Kamera hiba:', e);
+    });
+}
+function closeQrScan() {
+  document.getElementById('qrOverlay').classList.remove('open');
+  if (qrRAF) cancelAnimationFrame(qrRAF);
+  if (qrStream) qrStream.getTracks().forEach(t => t.stop());
+  qrStream = null;
+}
+function scanFrame() {
+  const video = document.getElementById('qrVideo');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height);
+    if (code) {
+      closeQrScan();
+      try {
+        const parsed = JSON.parse(code.data);
+        if (parsed.f && parsed.c) {
+          document.getElementById('pairScreen').style.display = 'flex';
+          redeemCode(parsed.c, parsed.f);
+          return;
+        }
+      } catch (e) { /* nem érvényes QR, folytatjuk */ }
+      setPairError('Ez nem egy érvényes MONYK párosító kód.');
+      return;
+    }
+  }
+  qrRAF = requestAnimationFrame(scanFrame);
+}
+
+// ══════════════════════════════════════════════════════════
+// FŐ KÉPERNYŐ — kid doc + saját entries élő figyelése
+// ══════════════════════════════════════════════════════════
+function attachKidListeners() {
+  const kRef = db.collection('families').doc(familyId).collection('kids').doc(kidId);
+  unsubKidDoc = kRef.onSnapshot(doc => {
+    if (!doc.exists) return;
+    const d = doc.data();
+    document.getElementById('kidAvatar').textContent = d.ikon || '🧒';
+    document.getElementById('kidName').textContent = d.nev || 'Te';
+  }, e => console.error('[MONYK Kids] kid doc hiba:', e));
+
+  unsubEntries = db.collection('families').doc(familyId).collection('entries')
+    .where('kidId', '==', kidId)
+    .onSnapshot(snap => {
+      const arr = [];
+      snap.forEach(doc => arr.push({ id: doc.id, ...doc.data() }));
+      arr.sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
+      entries = arr;
+      renderEntries();
+    }, e => console.error('[MONYK Kids] entries hiba:', e));
+}
+
+function showMainScreen() {
+  document.getElementById('pairScreen').style.display = 'none';
+  document.getElementById('mainScreen').classList.add('open');
+}
+
+function renderEntries() {
+  const totalIn = entries.filter(e => e.tipus === 'bevetel').reduce((s,e) => s + (e.osszeg||0), 0);
+  const totalOut = entries.filter(e => e.tipus !== 'bevetel').reduce((s,e) => s + (e.osszeg||0), 0);
+  document.getElementById('balanceAmt').textContent = (totalIn - totalOut).toLocaleString('hu') + ' Ft';
+  document.getElementById('totalIn').textContent = totalIn.toLocaleString('hu');
+  document.getElementById('totalOut').textContent = totalOut.toLocaleString('hu');
+
+  const body = document.getElementById('entriesBody');
+  if (!entries.length) {
+    body.innerHTML = '<div class="empty-state"><div class="es-ico">📝</div><div class="es-txt">Még nincs bejegyzésed.<br>Nyomd meg a gombot lent, és rögzítsd az elsőt!</div></div>';
+    return;
+  }
+  body.innerHTML = '<div class="sec-lbl">Napló</div>' + entries.map(e => {
+    const isIn = e.tipus === 'bevetel';
+    const catList = isIn ? IN_CATS : OUT_CATS;
+    const cat = catList.find(c => c.id === (e.forras || e.kategoria)) || catList[catList.length-1];
+    const dateStr = formatDate(e.datum);
+    return `<div class="entry" onclick="confirmDeleteEntry('${e.id}')">
+      <div class="entry-ico">${e.ikon || cat.ikon}</div>
+      <div class="entry-info">
+        <div class="entry-name">${escapeHtml(e.nev) || cat.lbl}</div>
+        <div class="entry-sub">${cat.lbl} · ${dateStr}</div>
+      </div>
+      <div class="entry-amt ${isIn?'in':'out'}">${isIn?'+':'−'}${(e.osszeg||0).toLocaleString('hu')} Ft</div>
+    </div>`;
+  }).join('');
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('hu', { month: 'short', day: 'numeric' });
+}
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function confirmDeleteEntry(entryId) {
+  const ok = window.confirm('Törlöd ezt a bejegyzést a naplódból?');
+  if (!ok) return;
+  db.collection('families').doc(familyId).collection('entries').doc(entryId).delete()
+    .catch(e => console.error('[MONYK Kids] Törlés hiba:', e));
+}
+
+// ══════════════════════════════════════════════════════════
+// ÚJ BEJEGYZÉS HOZZÁADÁSA MODAL
+// ══════════════════════════════════════════════════════════
+function openAddModal() {
+  document.getElementById('amtInput').value = '';
+  document.getElementById('nameInput').value = '';
+  selType('kiadas');
+  document.getElementById('addModalBg').classList.add('open');
+}
+function closeAddModal() {
+  document.getElementById('addModalBg').classList.remove('open');
+}
+function selType(type) {
+  addType = type;
+  selectedCat = null;
+  document.getElementById('typeInBtn').classList.toggle('on', type === 'bevetel');
+  document.getElementById('typeOutBtn').classList.toggle('on', type === 'kiadas');
+  document.getElementById('catLbl').textContent = type === 'bevetel' ? 'Honnan van?' : 'Mire ment?';
+  const cats = type === 'bevetel' ? IN_CATS : OUT_CATS;
+  document.getElementById('catChips').innerHTML = cats.map(c =>
+    `<div class="chip" id="chip-${c.id}" onclick="selCat('${c.id}')">${c.ikon} ${c.lbl}</div>`
+  ).join('');
+  validateAdd();
+}
+function selCat(id) {
+  selectedCat = id;
+  document.querySelectorAll('#catChips .chip').forEach(c => c.classList.toggle('on', c.id === 'chip-' + id));
+  validateAdd();
+}
+function validateAdd() {
+  const amt = parseInt(document.getElementById('amtInput').value.replace(/\D/g,''), 10);
+  document.getElementById('saveEntryBtn').disabled = !(amt > 0 && selectedCat);
+}
+document.getElementById('amtInput').addEventListener('input', function() {
+  this.value = this.value.replace(/\D/g,'');
+  validateAdd();
+});
+
+async function saveEntry() {
+  const amt = parseInt(document.getElementById('amtInput').value, 10);
+  if (!(amt > 0) || !selectedCat) return;
+  const btn = document.getElementById('saveEntryBtn');
+  btn.disabled = true; btn.textContent = 'Mentés…';
+  const cats = addType === 'bevetel' ? IN_CATS : OUT_CATS;
+  const cat = cats.find(c => c.id === selectedCat);
+  const nev = document.getElementById('nameInput').value.trim();
+  const today = new Date().toISOString().slice(0,10);
+  const payload = {
+    kidId: kidId,
+    nev: nev,
+    osszeg: amt,
+    tipus: addType,
+    datum: today,
+    ikon: cat.ikon,
+    paid: true,
+    rogzitette: 'kid',
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (addType === 'bevetel') payload.forras = selectedCat;
+  else payload.kategoria = selectedCat;
+  try {
+    await db.collection('families').doc(familyId).collection('entries').add(payload);
+    closeAddModal();
+  } catch (e) {
+    console.error('[MONYK Kids] Mentés hiba:', e);
+    alert('Nem sikerült menteni, próbáld újra.');
+  }
+  btn.disabled = false; btn.textContent = 'Mentés';
+}
+
+// ══════════════════════════════════════════════════════════
+// BEÁLLÍTÁSOK
+// ══════════════════════════════════════════════════════════
+function openSettings() { document.getElementById('settingsOv').classList.add('open'); }
+function closeSettings() { document.getElementById('settingsOv').classList.remove('open'); }
+function unpairDevice() {
+  const ok = window.confirm('Kijelentkezel erről az eszközről? A szülőd tud majd új kódot generálni, ha újra be szeretnél lépni.');
+  if (!ok) return;
+  if (unsubEntries) unsubEntries();
+  if (unsubKidDoc) unsubKidDoc();
+  localStorage.removeItem('monyk_kid_family_id');
+  localStorage.removeItem('monyk_kid_id');
+  familyId = null; kidId = null; entries = [];
+  document.getElementById('mainScreen').classList.remove('open');
+  document.getElementById('pairScreen').style.display = 'flex';
+  closeSettings();
+}
+</script>
+</body>
+</html>
