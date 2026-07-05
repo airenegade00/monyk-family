@@ -343,7 +343,7 @@ async function redeemCode(code, familyIdHint) {
     console.error('[MONYK Kids] Kod beváltás hiba:', e);
     if (e.message === 'NOTFOUND') setPairError('Nem található ilyen kód. Kérj újat a szülődtől!');
     else if (e.message === 'EXPIRED') setPairError('Ez a kód már lejárt. Kérj újat a szülődtől!');
-    else setPairError('Hiba történt, ellenőrizd az internetkapcsolatot és próbáld újra.');
+    else setPairError('Hiba: ' + (e.code || e.name || 'ismeretlen') + ' — ' + (e.message || ''));
   }
   setJoinLoading(false);
 }
