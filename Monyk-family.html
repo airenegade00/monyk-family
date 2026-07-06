@@ -14,8 +14,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-functions-compat.js"></script>
+<script src="googleAuth.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<!-- MONYK közös pairing-modul (build-időben bemásolva, lásd MONYK_Shared_Pairing_todo.md 1-2. szakasz) -->
+<script src="pairing.js"></script>
+<script src="pin.js"></script>
 <style>
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
 :root {
@@ -260,6 +265,33 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
   background:transparent;color:var(--acc);font-size:13px;font-weight:800;cursor:pointer;
   transition:background .15s; }
 .so-add-kid-btn:active { background:rgba(192,132,252,.06); }
+.sec-status { font-weight:800;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em; }
+.sec-status.on { color:var(--green); }
+.sec-status.off { color:var(--muted); }
+
+/* ── PIN zárolás (Biztonság — 11. szakasz) ── */
+.fam-pin-overlay { position:fixed;inset:0;z-index:9800;background:var(--bg);display:none;
+  flex-direction:column;align-items:center;justify-content:center;padding:26px;font-family:inherit; }
+.fam-pin-overlay.show { display:flex; }
+.fam-pin-wrap { display:flex;flex-direction:column;align-items:center;justify-content:center;
+  width:100%;max-width:320px; }
+.fam-pin-wrap.shake { animation:famPinShake .4s; }
+@keyframes famPinShake { 10%,90%{transform:translateX(-3px);} 20%,80%{transform:translateX(5px);}
+  30%,50%,70%{transform:translateX(-9px);} 40%,60%{transform:translateX(9px);} }
+.fam-pin-title { font-size:17px;font-weight:900;text-align:center;color:var(--text); }
+.fam-pin-sub { font-size:12px;color:var(--muted);margin-top:8px;text-align:center;line-height:1.5; }
+.fam-pin-dots { display:flex;gap:16px;justify-content:center;margin:30px 0 8px; }
+.fam-pin-dot { width:14px;height:14px;border:2px solid var(--acc);border-radius:50%; }
+.fam-pin-dot.filled { background:var(--acc); }
+.fam-pin-error { color:#f87171;font-size:11.5px;font-weight:700;text-align:center;min-height:16px;margin-bottom:4px; }
+.fam-pin-keypad { display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px;width:100%; }
+.fam-pin-key { aspect-ratio:1;border:1.5px solid var(--border);border-radius:14px;background:var(--bg2);
+  color:var(--text);font-size:20px;font-weight:800;cursor:pointer;font-family:inherit;
+  display:flex;align-items:center;justify-content:center; }
+.fam-pin-key:active { background:var(--acc);color:#1a0a2e;border-color:var(--acc); }
+.fam-pin-key.ghost { border-color:transparent;background:transparent; }
+.fam-pin-key.ghost:active { background:rgba(192,132,252,.08);color:var(--text); }
+.fam-pin-cancel { margin-top:24px;font-size:11px;color:var(--muted);text-decoration:underline;cursor:pointer;text-align:center; }
 #so-dark-toggle { border-color:var(--border); color:var(--text); }
 #so-dark-toggle.on { background:var(--acc); color:var(--bg2); border-style:solid; }
 .so-save-btn { width:100%;padding:13px;background:var(--acc);border:none;border-radius:14px;
@@ -674,6 +706,20 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
 .dcb-no { width:100%;padding:11px;border-radius:13px;border:1.5px solid var(--border);
   background:transparent;color:var(--muted);font-size:12px;font-weight:800;cursor:pointer;outline:none; }
 
+/* Család végleges törlése (10. szakasz) — külön danger gomb + gépeléses megerősítő modal */
+.so-danger-full-btn { width:100%;padding:12px;border-radius:14px;
+  background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.3);
+  color:#f87171;font-size:13px;font-weight:800;cursor:pointer;margin-top:10px;
+  transition:background .15s; }
+.so-danger-full-btn:active { background:rgba(239,68,68,.16); }
+.so-danger-full-btn:disabled { opacity:.5;cursor:default; }
+.fdm-input { width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid rgba(239,68,68,.4);
+  background:rgba(255,255,255,.05);color:var(--text);font-size:14px;font-weight:700;
+  text-align:center;margin-bottom:14px;outline:none;box-sizing:border-box; }
+.fdm-input:focus { border-color:var(--red); }
+.fdm-name { color:#f87171;font-weight:900; }
+.fdm-yes:disabled { opacity:.45;cursor:default; }
+
 /* Régi rec-opt (backward compat) */
 .rec-opts { display:flex;gap:6px;margin-top:8px; }
 .rec-opt { flex:1;padding:9px 6px;text-align:center;border-radius:10px;font-size:10px;font-weight:800;
@@ -878,6 +924,7 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
         <span class="logo-badge">FAMILY</span>
       </div>
       <div class="header-actions">
+        <button class="hbtn" onclick="openShoppingList()" id="shop-btn">🛒</button>
         <button class="hbtn" onclick="openNotifPanel()" id="notif-btn">🔔<span class="nbadge" id="notif-badge" style="display:none">0</span></button>
         <button class="hbtn" onclick="openSettings()">⚙️</button>
       </div>
@@ -1291,6 +1338,31 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
   <div class="kdo-body" id="kdo-body"></div>
 </div>
 
+<!-- PIN ZÁROLÁS / FELOLDÁS (Biztonság — 11. szakasz) -->
+<div class="fam-pin-overlay" id="famPinOverlay">
+  <div class="fam-pin-wrap" id="famPinWrap">
+    <div class="fam-pin-title" id="famPinTitle">MONYK Family zárolva</div>
+    <div class="fam-pin-sub" id="famPinSub"></div>
+    <div class="fam-pin-dots" id="famPinDots"></div>
+    <div class="fam-pin-error" id="famPinError"></div>
+    <div class="fam-pin-keypad">
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('1')">1</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('2')">2</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('3')">3</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('4')">4</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('5')">5</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('6')">6</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('7')">7</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('8')">8</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('9')">9</button>
+      <button type="button" class="fam-pin-key ghost" id="famPinBioBtn" onclick="famTryBiometric()" style="visibility:hidden;">👆</button>
+      <button type="button" class="fam-pin-key" onclick="famPinDigit('0')">0</button>
+      <button type="button" class="fam-pin-key ghost" onclick="famPinBackspace()">⌫</button>
+    </div>
+    <div class="fam-pin-cancel" id="famPinCancelBtn" onclick="famCancelPinOverlay()" style="display:none;">Mégse</div>
+  </div>
+</div>
+
 <!-- SETTINGS OVERLAY -->
 <div class="settings-overlay" id="settingsOv">
   <div class="so-header">
@@ -1299,11 +1371,19 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
   </div>
   <div class="so-body">
 
+    <!-- FIÓK — GOOGLE-ÖSSZEKAPCSOLÁS (opcionális, 2026-07-06) ────────── -->
+    <div class="so-section">
+      <div class="so-section-lbl">👤 Fiók</div>
+      <div id="accountSettingsBox"></div>
+    </div>
+
     <!-- 0. CSALÁD VÁLTÁS ──────────────────────────────────── -->
     <div class="so-section">
       <div class="so-section-lbl">👪 Család</div>
       <div id="soFamilyName" style="font-size:13px;color:var(--muted);margin-bottom:8px;"></div>
+      <button class="so-add-kid-btn" onclick="closeSettings();openInviteCodeRegenModal()">📨 Meghívókód új eszköznek</button>
       <button class="so-add-kid-btn" onclick="closeSettings();confirmLeaveFamily()">🔁 Másik családba lépés / kilépés</button>
+      <button class="so-danger-full-btn" id="so-delete-family-btn" onclick="openDeleteFamilyModal()">🗑 Család végleges törlése</button>
     </div>
 
     <!-- 0.3 KÖZÖS KASSZA KAPCSOLÓ (v78) -->
@@ -1315,6 +1395,54 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
         </div>
         <label class="toggle-sw"><input type="checkbox" id="soKasszaToggle" onchange="toggleSharedKasse(this.checked)"><span class="slider"></span></label>
       </div>
+    </div>
+
+    <!-- 0.31 ELSZÁMOLÁSI ARÁNY (splitRatio) — csak külön-elszámolás módban látszik -->
+    <div class="so-section" id="so-splitratio-section" style="display:none;">
+      <div class="so-row-info" style="margin-bottom:8px;">
+        <div class="so-row-lbl" id="so-splitratio-lbl"></div>
+        <div class="so-row-sub" id="so-splitratio-sub"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="so-splitratio-nameA" style="font-size:11px;color:var(--muted);min-width:60px;"></span>
+        <input type="range" id="soSplitRatioSlider" min="0" max="100" step="5" style="flex:1;" oninput="onSplitRatioSliderInput(this.value)" onchange="setSplitRatio(this.value)">
+        <span id="so-splitratio-nameB" style="font-size:11px;color:var(--muted);min-width:60px;text-align:right;"></span>
+      </div>
+      <div id="so-splitratio-val" style="text-align:center;font-size:13px;font-weight:800;margin-top:6px;"></div>
+    </div>
+
+    <!-- 0.32 KATEGÓRIA-KERETEK (categoryBudgets) -->
+    <div class="so-section">
+      <div class="so-row-info" style="margin-bottom:10px;">
+        <div class="so-row-lbl" id="so-katkeret-lbl"></div>
+        <div class="so-row-sub" id="so-katkeret-sub"></div>
+      </div>
+      <div id="so-katkeret-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <!-- 0.35 BIZTONSÁG: PIN + BIOMETRIA (11. szakasz) -->
+    <div class="so-section">
+      <div class="so-section-lbl" id="so-lbl-biztonsag">🔒 Biztonság</div>
+      <div class="so-row">
+        <div class="so-row-info">
+          <div class="so-row-lbl" id="so-pin-lbl">PIN kód zár</div>
+          <div class="so-row-sub"><span class="sec-status" id="famSecPinStatus">Kikapcsolva</span></div>
+        </div>
+      </div>
+      <button class="so-add-kid-btn" id="famSecPinBtn" onclick="famHandlePinButtonClick()" style="margin-top:8px;">PIN bekapcsolása</button>
+      <div class="so-row" id="famSecBioRow" style="display:none;margin-top:10px;">
+        <div class="so-row-info">
+          <div class="so-row-lbl" id="so-bio-lbl">Biometrikus feloldás</div>
+          <div class="so-row-sub"><span class="sec-status" id="famSecBioStatus">Kikapcsolva</span></div>
+        </div>
+      </div>
+      <button class="so-add-kid-btn" id="famSecBioBtn" onclick="famHandleBioButtonClick()" style="margin-top:8px;display:none;">Biometria bekapcsolása</button>
+    </div>
+
+    <!-- 0.4 ADAT EXPORT (backlog 7. szakasz) -->
+    <div class="so-section">
+      <div class="so-section-lbl" id="so-lbl-export">💾 Adat mentés / export</div>
+      <button class="so-add-kid-btn" onclick="exportFamilyData()">⬇️ Teljes családi adat letöltése (JSON)</button>
     </div>
 
     <!-- 0.5 NYELV -->
@@ -1605,6 +1733,46 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
     <button class="dcb-no" id="dcbNo" onclick="closeDeleteConfirm()">Mégsem</button>
   </div>
 </div>
+
+<!-- CSALÁD VÉGLEGES TÖRLÉSE — gépeléses megerősítő modal (10. szakasz) -->
+<div class="delete-confirm-bg" id="fdmBg">
+  <div class="delete-confirm-box">
+    <div class="dcb-icon">⚠️</div>
+    <div class="dcb-title" id="fdmTitle">Család végleges törlése</div>
+    <div class="dcb-sub" id="fdmSub">
+      Ez véglegesen és visszavonhatatlanul törli az összes gyereket, tételt,
+      elszámolást, meghívó-kódot és a családtagságot minden eszközön. Ez nem ugyanaz,
+      mint a kilépés — a kilépés után az adat megmarad, ez a gomb véglegesen törli.
+    </div>
+    <div class="dcb-sub" style="margin-bottom:8px;">
+      <span id="fdmConfirmLbl">A megerősítéshez írd be a család nevét:</span>
+      <span class="fdm-name" id="fdmFamilyName"></span>
+    </div>
+    <input class="fdm-input" id="fdmInput" type="text" autocomplete="off" oninput="fdmCheckInput()">
+    <button class="dcb-yes fdm-yes" id="fdmYes" disabled onclick="performDeleteFamily()">🗑 Igen, véglegesen törlöm</button>
+    <button class="dcb-no" id="fdmNo" onclick="closeDeleteFamilyModal()">Mégsem</button>
+  </div>
+</div>
+
+<!-- ÚJ MEGHÍVÓKÓD GENERÁLÁSA MEGLÉVŐ CSALÁDHOZ (2026-07-06) -->
+<!-- Bármelyik meglévő családtag bármikor tud generálni egy friss, 48 órán -->
+<!-- át érvényes kódot, hogy egy új eszközt (vagy egy elveszett telefon utáni -->
+<!-- visszalépést) hozzá tudjon kötni a családhoz — nem csak a család -->
+<!-- létrehozásának pillanatában elérhető ez, mint korábban. -->
+<div class="delete-confirm-bg" id="invRegenBg">
+  <div class="delete-confirm-box">
+    <div class="dcb-icon">📨</div>
+    <div class="dcb-title">Meghívókód új eszköznek</div>
+    <div class="dcb-sub" id="invRegenSub">
+      Ezt a kódot add meg az új telefonon (vagy olvastasd be a QR-t) a
+      "Csatlakozás kóddal" gombbal — a kód 48 óráig érvényes.
+    </div>
+    <div id="invRegenContent" style="min-height:220px;display:flex;align-items:center;justify-content:center;">
+      <div class="dcb-sub">Generálás...</div>
+    </div>
+    <button class="dcb-no" onclick="closeInviteCodeRegenModal()">Bezárás</button>
+  </div>
+</div>
 <div class="toast" id="toastEl"></div>
 <script>
 const SWIPE_THRESH = 55;
@@ -1662,7 +1830,7 @@ const TRANSLATIONS = {
     ujTetel:'＋ Új tétel', osszes:'Összes', surgos:'Sürgős', iskolai:'Iskolai',
     kiadások:'Kiadások', gyerekek:'Gyerekek', riport:'Riport',
     beallitasok:'Beállítások', vissza:'← Vissza', mentes:'✓ Mentés',
-    familiaTheme:'🎨 Család téma', gyerekekSec:'👨‍👩‍👧 Gyerekek', nyelvSec:'🌐 Nyelv',
+    familiaTheme:'🎨 Család téma', gyerekekSec:'👨‍👩‍👧 Gyerekek', nyelvSec:'🌐 Nyelv', exportCim:'💾 Adat mentés / export', shopCim:'🛒 Bevásárló/teendő lista', shopPlaceholder:'pl. cipő, tornafelszerelés, füzet...', shopEmpty:'Nincs még tétel a listán.', shopAddErr:'A tétel hozzáadása nem sikerült.', shopDelBtn:'🗑️', vissza2:'← Vissza',
     alapKonyveles:'📒 Alapértelmezett naplózás', ertesitesek:'🔔 Értesítések',
     ujGyerek:'＋ Új gyerek hozzáadása', szerkeszt:'✏️ Szerkeszt',
     zsebpenzHo:'Zsebpénz: %s/hó · Keret: %s',
@@ -1798,6 +1966,13 @@ const TRANSLATIONS = {
     // Delete confirm modal
     dcbTitle:'Törlés megerősítése', dcbSub:'Biztosan törlöd ezt a tételt?',
     dcbYes:'🗑 Igen, törlöm', dcbNo:'Mégsem',
+    // Család végleges törlése (10. szakasz)
+    deleteFamilyBtn:'🗑 Család végleges törlése',
+    fdmTitle:'Család végleges törlése',
+    fdmSub:'Ez véglegesen és visszavonhatatlanul törli az összes gyereket, tételt, elszámolást, meghívó-kódot és a családtagságot minden eszközön. Ez nem ugyanaz, mint a kilépés — a kilépés után az adat megmarad, ez a gomb véglegesen törli.',
+    fdmConfirmLbl:'A megerősítéshez írd be a család nevét:',
+    fdmYes:'🗑 Igen, véglegesen törlöm', fdmYesBusy:'⏳ Törlés folyamatban…', fdmNo:'Mégsem',
+    fdmSuccess:'🗑 A család véglegesen törölve', fdmError:'⚠️ Nem sikerült teljesen törölni (nincs kapcsolat?) — próbáld újra',
     // Confirm pay modal
     cmSub:'Megerősítés után a főappba is könyvelődik.',
     cmYes:'✅ Igen, fizetve – naplózva', cmDelay:'⏰ Még nem – emlékeztető', cmNo:'✕ Mégsem',
@@ -1843,6 +2018,23 @@ const TRANSLATIONS = {
     csaladKasszaKerdes:'Hogyan kezelitek a kiadásokat?',
     kasszaKozosOpt:'💰 Közös kasszából fizetünk',
     kasszaKulonOpt:'🧾 Külön költünk, elszámolunk',
+    splitRatioLbl:'Elszámolási arány',
+    splitRatioSub:'Ha nem 50-50%-ban osztoztok, itt állítsátok be, ki mekkora részt vállal.',
+    splitRatioHint:'%s: %s% · %s: %s%',
+    katKeretCim:'📦 Kategória-keretek',
+    katKeretLbl:'Havi kategória-keretek', katKeretSub:'Állíts be havi költési keretet kategóriánként (0 = nincs korlát).',
+    // Biztonság: PIN + biometria
+    soBiztonsagLbl:'🔒 Biztonság',
+    soPinRowLbl:'PIN kód zár', soPinOnBtn:'PIN bekapcsolása', soPinOffBtn:'PIN kikapcsolása',
+    soBioRowLbl:'Biometrikus feloldás', soBioOnBtn:'Biometria bekapcsolása', soBioOffBtn:'Biometria kikapcsolása',
+    secStatusOn:'Bekapcsolva', secStatusOff:'Kikapcsolva', secStatusUnavail:'Nem elérhető',
+    pinTitleLock:'MONYK Family zárolva', pinSubLock:'Add meg a PIN kódot a feloldáshoz',
+    pinTitleSetup1:'Új PIN beállítása', pinSubSetup1:'Adj meg egy 4 jegyű PIN kódot',
+    pinTitleSetup2:'PIN megerősítése', pinSubSetup2:'Add meg még egyszer az új PIN kódot',
+    pinTitleDisable:'PIN kikapcsolása', pinSubDisable:'A kikapcsoláshoz add meg a jelenlegi PIN kódot',
+    pinCancelBtn:'Mégse', pinErrNoMatch:'A két PIN nem egyezik — kezdd újra.', pinErrWrong:'Helytelen PIN kód.',
+    pinSetOkToast:'🔒 PIN kód beállítva', pinOffOkToast:'🔓 PIN kód kikapcsolva',
+    bioOffToast:'Biometria kikapcsolva', bioOnToast:'👆 Biometria bekapcsolva', bioUnavailToast:'⚠️ Biometria nem elérhető ezen az eszközön',
   },
   en: {
     familia:'FAMILY', ki:'Exit', haviOssz:'Monthly total', zsebpenz:'Allowance',
@@ -1850,7 +2042,7 @@ const TRANSLATIONS = {
     ujTetel:'＋ New item', osszes:'All', surgos:'Urgent', iskolai:'School',
     kiadások:'Expenses', gyerekek:'Children', riport:'Report',
     beallitasok:'Settings', vissza:'← Back', mentes:'✓ Save',
-    familiaTheme:'🎨 Family theme', gyerekekSec:'👨‍👩‍👧 Children', nyelvSec:'🌐 Language',
+    familiaTheme:'🎨 Family theme', gyerekekSec:'👨‍👩‍👧 Children', nyelvSec:'🌐 Language', exportCim:'💾 Data backup / export', shopCim:'🛒 Shopping/to-do list', shopPlaceholder:'e.g. shoes, gym kit, notebook...', shopEmpty:'No items on the list yet.', shopAddErr:'Could not add the item.', shopDelBtn:'🗑️', vissza2:'← Back',
     alapKonyveles:'📒 Default bookkeeping', ertesitesek:'🔔 Notifications',
     ujGyerek:'＋ Add child', szerkeszt:'✏️ Edit',
     zsebpenzHo:'Allowance: %s/mo · Budget: %s',
@@ -1973,6 +2165,13 @@ const TRANSLATIONS = {
     // Delete confirm modal
     dcbTitle:'Confirm deletion', dcbSub:'Are you sure you want to delete this item?',
     dcbYes:'🗑 Yes, delete', dcbNo:'Cancel',
+    // Permanently delete family (section 10)
+    deleteFamilyBtn:'🗑 Permanently delete family',
+    fdmTitle:'Permanently delete family',
+    fdmSub:'This permanently and irreversibly deletes all kids, entries, settlements, invite codes, and membership on every device. This is not the same as leaving — leaving keeps the data, this button deletes it for good.',
+    fdmConfirmLbl:'To confirm, type the family name:',
+    fdmYes:'🗑 Yes, delete permanently', fdmYesBusy:'⏳ Deleting…', fdmNo:'Cancel',
+    fdmSuccess:'🗑 Family permanently deleted', fdmError:'⚠️ Could not fully delete (no connection?) — please try again',
     // Confirm pay modal
     cmSub:'Will also be recorded in the main app after confirmation.',
     cmYes:'✅ Yes, paid – record', cmDelay:'⏰ Not yet – reminder', cmNo:'✕ Cancel',
@@ -2018,6 +2217,23 @@ const TRANSLATIONS = {
     csaladKasszaKerdes:'How do you handle expenses?',
     kasszaKozosOpt:'💰 We pay from a shared kitty',
     kasszaKulonOpt:'🧾 We pay separately, settle up',
+    splitRatioLbl:'Settlement ratio',
+    splitRatioSub:'If you don\'t split 50-50, set here how much of a share each of you covers.',
+    splitRatioHint:'%s: %s% · %s: %s%',
+    katKeretCim:'📦 Category budgets',
+    katKeretLbl:'Monthly category budgets', katKeretSub:'Set a monthly spending limit per category (0 = no limit).',
+    // Security: PIN + biometrics
+    soBiztonsagLbl:'🔒 Security',
+    soPinRowLbl:'PIN lock', soPinOnBtn:'Enable PIN', soPinOffBtn:'Disable PIN',
+    soBioRowLbl:'Biometric unlock', soBioOnBtn:'Enable biometrics', soBioOffBtn:'Disable biometrics',
+    secStatusOn:'On', secStatusOff:'Off', secStatusUnavail:'Not available',
+    pinTitleLock:'MONYK Family locked', pinSubLock:'Enter the PIN code to unlock',
+    pinTitleSetup1:'Set a new PIN', pinSubSetup1:'Enter a 4-digit PIN code',
+    pinTitleSetup2:'Confirm PIN', pinSubSetup2:'Enter the new PIN code again',
+    pinTitleDisable:'Disable PIN', pinSubDisable:'Enter the current PIN code to disable it',
+    pinCancelBtn:'Cancel', pinErrNoMatch:'The two PINs don\\u2019t match — try again.', pinErrWrong:'Wrong PIN code.',
+    pinSetOkToast:'🔒 PIN code set', pinOffOkToast:'🔓 PIN code disabled',
+    bioOffToast:'Biometrics disabled', bioOnToast:'👆 Biometrics enabled', bioUnavailToast:'⚠️ Biometrics not available on this device',
   },
   de: {
     familia:'FAMILIE', ki:'Beenden', haviOssz:'Monatssumme', zsebpenz:'Taschengeld',
@@ -2025,7 +2241,7 @@ const TRANSLATIONS = {
     ujTetel:'＋ Neuer Posten', osszes:'Alle', surgos:'Dringend', iskolai:'Schule',
     kiadások:'Ausgaben', gyerekek:'Kinder', riport:'Bericht',
     beallitasok:'Einstellungen', vissza:'← Zurück', mentes:'✓ Speichern',
-    familiaTheme:'🎨 Familien-Theme', gyerekekSec:'👨‍👩‍👧 Kinder', nyelvSec:'🌐 Sprache',
+    familiaTheme:'🎨 Familien-Theme', gyerekekSec:'👨‍👩‍👧 Kinder', nyelvSec:'🌐 Sprache', exportCim:'💾 Datensicherung / Export', shopCim:'🛒 Einkaufs-/To-do-Liste', shopPlaceholder:'z.B. Schuhe, Sportzeug, Heft...', shopEmpty:'Noch keine Eintraege auf der Liste.', shopAddErr:'Der Eintrag konnte nicht hinzugefuegt werden.', shopDelBtn:'🗑️', vissza2:'← Zurueck',
     alapKonyveles:'📒 Standard-Buchung', ertesitesek:'🔔 Benachrichtigungen',
     ujGyerek:'＋ Kind hinzufügen', szerkeszt:'✏️ Bearbeiten',
     zsebpenzHo:'Taschengeld: %s/Mo · Budget: %s',
@@ -2150,6 +2366,13 @@ const TRANSLATIONS = {
     // Delete confirm modal
     dcbTitle:'Löschen bestätigen', dcbSub:'Diesen Eintrag wirklich löschen?',
     dcbYes:'🗑 Ja, löschen', dcbNo:'Abbrechen',
+    // Familie endgültig löschen (Abschnitt 10)
+    deleteFamilyBtn:'🗑 Familie endgültig löschen',
+    fdmTitle:'Familie endgültig löschen',
+    fdmSub:'Dies löscht endgültig und unwiderruflich alle Kinder, Einträge, Abrechnungen, Einladungscodes und die Mitgliedschaft auf allen Geräten. Das ist nicht dasselbe wie Verlassen — beim Verlassen bleiben die Daten erhalten, dieser Button löscht sie endgültig.',
+    fdmConfirmLbl:'Gib zur Bestätigung den Familiennamen ein:',
+    fdmYes:'🗑 Ja, endgültig löschen', fdmYesBusy:'⏳ Wird gelöscht…', fdmNo:'Abbrechen',
+    fdmSuccess:'🗑 Familie endgültig gelöscht', fdmError:'⚠️ Konnte nicht vollständig gelöscht werden (keine Verbindung?) — bitte erneut versuchen',
     // Confirm pay modal
     cmSub:'Wird nach Bestätigung in der Haupt-App gebucht.',
     cmYes:'✅ Ja, bezahlt – buchen', cmDelay:'⏰ Noch nicht – Erinnerung', cmNo:'✕ Abbrechen',
@@ -2195,6 +2418,23 @@ const TRANSLATIONS = {
     csaladKasszaKerdes:'Wie handhabt ihr die Ausgaben?',
     kasszaKozosOpt:'💰 Wir zahlen aus einer gemeinsamen Kasse',
     kasszaKulonOpt:'🧾 Wir zahlen getrennt und rechnen ab',
+    splitRatioLbl:'Aufteilungsverhältnis',
+    splitRatioSub:'Wenn ihr nicht 50-50 teilt, stellt hier ein, welchen Anteil jeder übernimmt.',
+    splitRatioHint:'%s: %s% · %s: %s%',
+    katKeretCim:'📦 Kategorie-Budgets',
+    katKeretLbl:'Monatliche Kategorie-Budgets', katKeretSub:'Legt ein monatliches Ausgabenlimit pro Kategorie fest (0 = kein Limit).',
+    // Sicherheit: PIN + Biometrie
+    soBiztonsagLbl:'🔒 Sicherheit',
+    soPinRowLbl:'PIN-Sperre', soPinOnBtn:'PIN aktivieren', soPinOffBtn:'PIN deaktivieren',
+    soBioRowLbl:'Biometrische Entsperrung', soBioOnBtn:'Biometrie aktivieren', soBioOffBtn:'Biometrie deaktivieren',
+    secStatusOn:'Aktiv', secStatusOff:'Deaktiviert', secStatusUnavail:'Nicht verfügbar',
+    pinTitleLock:'MONYK Family gesperrt', pinSubLock:'Gib den PIN-Code zum Entsperren ein',
+    pinTitleSetup1:'Neuen PIN festlegen', pinSubSetup1:'Gib einen 4-stelligen PIN-Code ein',
+    pinTitleSetup2:'PIN bestätigen', pinSubSetup2:'Gib den neuen PIN-Code erneut ein',
+    pinTitleDisable:'PIN deaktivieren', pinSubDisable:'Gib den aktuellen PIN-Code ein, um ihn zu deaktivieren',
+    pinCancelBtn:'Abbrechen', pinErrNoMatch:'Die beiden PINs stimmen nicht überein — versuch es erneut.', pinErrWrong:'Falscher PIN-Code.',
+    pinSetOkToast:'🔒 PIN-Code festgelegt', pinOffOkToast:'🔓 PIN-Code deaktiviert',
+    bioOffToast:'Biometrie deaktiviert', bioOnToast:'👆 Biometrie aktiviert', bioUnavailToast:'⚠️ Biometrie auf diesem Gerät nicht verfügbar',
   },
 };
 
@@ -2392,6 +2632,14 @@ function applyLang() {
   renderAll();
   // Ha settings nyitva van, frissítsük
   if(document.getElementById('settingsOv')?.classList.contains('open')) openSettings();
+  // Bevásárlólista overlay (v87), ha épp nyitva van
+  if (document.getElementById('shopOv')?.style.display === 'flex') {
+    el('shop-back-btn', t('vissza2'));
+    el('shop-title', t('shopCim'));
+    const shopInputEl = document.getElementById('shopInput');
+    if (shopInputEl) shopInputEl.placeholder = t('shopPlaceholder');
+    renderShoppingList();
+  }
   // Overlay statikus szövegek
   el('po-back-btn',  t('vissza'));
   el('po-save-btn',  t('mentesGomb'));
@@ -2500,6 +2748,10 @@ function applyLang() {
   el('so-lbl-gyerekek', t('gyerekekSec'));
   el('so-btn-ujgyerek', t('ujGyerek'));
   el('so-save-btn',     t('mentesGomb'));
+  el('so-lbl-biztonsag', t('soBiztonsagLbl'));
+  el('so-pin-lbl', t('soPinRowLbl'));
+  el('so-bio-lbl', t('soBioRowLbl'));
+  famRenderSecuritySettings();
   // Confirm modal (manuális naplózás)
   el('cm-btn-yes',    t('cmYes'));
   el('cm-btn-delay',  t('cmDelay'));
@@ -2511,6 +2763,14 @@ function applyLang() {
   el('dcbSub',        t('dcbSub'));
   el('dcbYes',        t('dcbYes'));
   el('dcbNo',         t('dcbNo'));
+  // Család végleges törlése modal (10. szakasz)
+  el('so-delete-family-btn', t('deleteFamilyBtn'));
+  el('fdmTitle',       t('fdmTitle'));
+  el('fdmSub',         t('fdmSub'));
+  el('fdmConfirmLbl',  t('fdmConfirmLbl'));
+  el('fdmYes',         t('fdmYes'));
+  el('fdmNo',          t('fdmNo'));
+  if (typeof fdmUpdateFamilyNameLabel === 'function') fdmUpdateFamilyNameLabel();
   // Reminder modal title
   el('rem-modal-title', `🔔 ${t('emlekezteto').replace('🔔 ','')}`);
   // New kid modal title
@@ -2577,6 +2837,10 @@ const kids = [];
 
 let items = [];
 
+// ── biztonság: PIN + biometria (11. szakasz) — a state a monyk-shared/pin.js
+//    modulban él, ld. lentebb a MonykPin.init() hívást ──
+const FAM_PIN_LENGTH = 4;
+
 // ══════════════════════════════════════════════════════════
 // ── FIREBASE INIT + PAIRING (monyk-family-7e1e5) ──
 // ══════════════════════════════════════════════════════════
@@ -2593,12 +2857,96 @@ firebase.initializeApp(firebaseConfig);
 const fbAuth = firebase.auth();
 const db = firebase.firestore();
 
+// ── Google-fiók opcionális összekapcsolása (2026-07-06, GOOGLE_SIGNIN_PLAN.md) ──
+// Csak akkor tud UI-t frissíteni, ha renderAccountSettingsUI() már definiálva
+// van a fájl későbbi részén — a callback-ek ezért csak a hívás pillanatában
+// olvassák ki a függvényt (nem itt, az init()-ben), ami rendben van, mert
+// a callback-ek úgyis csak a redirect visszatérésekor futnak le, ami mindig
+// a teljes szkript lefutása UTÁN történik.
+let googleLinkedProfile = null;
+
+MonykGoogleAuth.init({
+  firebase: firebase,
+  fbAuth: fbAuth,
+  showToast: (typeof toast === 'function') ? toast : undefined,
+  onLinked: (profile) => {
+    googleLinkedProfile = profile;
+    if (currentFamilyId && currentUid) {
+      db.collection('families').doc(currentFamilyId).collection('members').doc(currentUid)
+        .update({ googleName: profile.displayName || null, photoUrl: profile.photoUrl || null })
+        .catch(e => console.warn('[MONYK Family] googleName mentése hiba:', e));
+    }
+    if (typeof renderAccountSettingsUI === 'function') renderAccountSettingsUI();
+    if (typeof toast === 'function') toast('Google-fiók összekapcsolva: ' + (profile.displayName || profile.email || ''));
+  },
+  onSignedIn: (profile) => {
+    // Ez akkor fut le, ha valaki egy vadonatúj telepítésen a korábban
+    // linkelt Google-fiókjával tért vissza — a currentUid-ot és a család-
+    // tagságot az fbAuth.onAuthStateChanged (lentebb) már kezeli, itt csak
+    // a profil-adatot frissítjük, ha épp van már ismert családunk.
+    googleLinkedProfile = profile;
+    if (currentFamilyId && currentUid) {
+      db.collection('families').doc(currentFamilyId).collection('members').doc(currentUid)
+        .update({ googleName: profile.displayName || null, photoUrl: profile.photoUrl || null })
+        .catch(e => console.warn('[MONYK Family] googleName mentése hiba:', e));
+    }
+    if (typeof renderAccountSettingsUI === 'function') renderAccountSettingsUI();
+  },
+  onLinkError: (error, friendlyMsg) => {
+    console.warn('[MONYK Family] Google-fiók hiba:', error);
+    if (typeof toast === 'function') toast(friendlyMsg);
+  }
+});
+
+function linkGoogleAccount() {
+  MonykGoogleAuth.linkCurrentAccount();
+}
+
+async function unlinkGoogleAccount() {
+  const ok = window.confirm('Biztosan leválasztod a Google-fiókodat? A családtagságod megmarad, csak a név/fotó tűnik el.');
+  if (!ok) return;
+  const success = await MonykGoogleAuth.unlink();
+  if (success) {
+    googleLinkedProfile = null;
+    if (currentFamilyId && currentUid) {
+      try {
+        await db.collection('families').doc(currentFamilyId).collection('members').doc(currentUid)
+          .update({ googleName: null, photoUrl: null });
+      } catch (e) {
+        console.warn('[MONYK Family] googleName törlése hiba:', e);
+      }
+    }
+    renderAccountSettingsUI();
+  }
+}
+
+function renderAccountSettingsUI() {
+  const box = document.getElementById('accountSettingsBox');
+  if (!box) return;
+  const profile = MonykGoogleAuth.getLinkedProfile();
+  if (!profile) {
+    box.innerHTML =
+      '<div class="so-row-info" style="margin-bottom:8px;">Kösd össze a fiókodat egy Google-fiókkal, hogy új telefonon is visszakapd a hozzáférésed meghívókód nélkül.</div>' +
+      '<button class="so-add-kid-btn" onclick="linkGoogleAccount()">🔗 Google-fiók összekapcsolása</button>';
+    return;
+  }
+  const avatar = profile.photoUrl
+    ? '<img src="' + profile.photoUrl + '" style="width:32px;height:32px;border-radius:50%;vertical-align:middle;margin-right:8px;">'
+    : '';
+  box.innerHTML =
+    '<div class="so-row-info" style="margin-bottom:8px;display:flex;align-items:center;">' + avatar +
+    '<span>' + (profile.displayName || profile.email || 'Összekapcsolva') + '</span></div>' +
+    '<button class="so-add-kid-btn" onclick="unlinkGoogleAccount()">Leválasztás</button>';
+}
+
 let currentUid = null;
 let currentFamilyId = localStorage.getItem('monyk_family_id') || null;
 let currentFamilyName = '';
 
 // v78: Közös kassza kapcsoló + családtagok + elszámolások
 let currentFamilySharedKasse = true; // families/{id}.sharedKasse — amíg nem jön adat, alapértelmezett: közös kassza
+let currentFamilySplitRatio = 50; // families/{id}.splitRatio — az uidA (familyMembers[0]) hányad %-a, alapértelmezett 50-50
+let currentCategoryBudgets = {}; // families/{id}.categoryBudgets — { 'Étkezés': 15000, ... } havi keret Ft-ban kategóriánként, 0/hiányzó = nincs beállítva
 const familyMembers = [];   // [{uid, deviceName}] — a members subcollection tükre
 const familySettlements = []; // [{id, amount, from, to, year, month}] — a settlements subcollection tükre
 
@@ -2608,6 +2956,38 @@ function memberDisplayName(uid) {
   if (uid === currentUid) return t('enMagam');
   const mm = familyMembers.find(x => x.uid === uid);
   return mm ? mm.deviceName : 'Szülő';
+}
+
+// ── ÚJ MEGHÍVÓKÓD GENERÁLÁSA MEGLÉVŐ CSALÁDHOZ (2026-07-06) ──
+// Válasz arra a helyzetre, amikor valaki kilépett, vagy új telefont kapott:
+// eddig csak a család LÉTREHOZÁSAKOR kapott kódot lehetett megosztani, azt
+// utólag sehol nem lehetett újra előhívni. Ez a funkció bármelyik meglévő
+// családtag eszközéről elérhető, és egy friss (48 órás), a MEGLÉVŐ családra
+// mutató kódot generál — ugyanabba a top-level inviteCodes collectionbe
+// írva, mint amit a monyk-shared/pairing.js createGroup()-ja használ, tehát
+// a "Csatlakozás kóddal" gomb a másik telefonon változtatás nélkül működik
+// vele.
+async function openInviteCodeRegenModal() {
+  if (!currentFamilyId) return;
+  document.getElementById('invRegenBg').classList.add('on');
+  const box = document.getElementById('invRegenContent');
+  box.innerHTML = '<div class="dcb-sub">Generálás...</div>';
+  try {
+    const code = await MonykPairing.generateUniqueInviteCode();
+    await db.collection('inviteCodes').doc(code).set({
+      collectionName: 'families',
+      groupId: currentFamilyId,
+      expiresAt: Date.now() + 48 * 60 * 60 * 1000
+    });
+    MonykPairing.showInviteCodeUI('invRegenContent', code);
+  } catch (e) {
+    console.error('[MONYK Family] Meghívókód generálás hiba:', e);
+    box.innerHTML = '<div class="dcb-sub">Hiba történt a kód generálása közben. Próbáld újra.</div>';
+  }
+}
+
+function closeInviteCodeRegenModal() {
+  document.getElementById('invRegenBg').classList.remove('on');
 }
 
 function confirmLeaveFamily() {
@@ -2622,6 +3002,7 @@ function confirmLeaveFamily() {
   if (unsubFamilyDoc) unsubFamilyDoc();
   if (unsubMembers) unsubMembers();
   if (unsubSettlements) unsubSettlements();
+  if (unsubShopping) unsubShopping();
   localStorage.removeItem('monyk_family_id');
   currentFamilyId = null;
   currentFamilySharedKasse = true;
@@ -2632,6 +3013,118 @@ function confirmLeaveFamily() {
   renderAll();
   showFamilyPairingUI();
 }
+
+// ── CSALÁD VÉGLEGES TÖRLÉSE (10. szakasz, v88, 2026-07-05) ──
+// Gépeléses megerősítés (a család nevét kell pontosan beírni), majd
+// az összes families/{id} alatti subcollection + a hozzá tartozó
+// top-level inviteCodes dokumentum(ok) + maga a family-dokumentum törlése.
+// Ez NEM ugyanaz, mint a confirmLeaveFamily() — az csak leválasztja az
+// eszközt, ez ténylegesen, visszavonhatatlanul törli az adatot Firestore-ban.
+function fdmUpdateFamilyNameLabel() {
+  const nameEl = document.getElementById('fdmFamilyName');
+  if (nameEl) nameEl.textContent = currentFamilyName || '';
+}
+
+function openDeleteFamilyModal() {
+  if (!currentFamilyId) return;
+  fdmUpdateFamilyNameLabel();
+  const input = document.getElementById('fdmInput');
+  if (input) input.value = '';
+  const yesBtn = document.getElementById('fdmYes');
+  if (yesBtn) { yesBtn.disabled = true; yesBtn.textContent = t('fdmYes'); }
+  document.getElementById('fdmBg').classList.add('on');
+}
+
+function closeDeleteFamilyModal() {
+  document.getElementById('fdmBg').classList.remove('on');
+  const input = document.getElementById('fdmInput');
+  if (input) input.value = '';
+  const yesBtn = document.getElementById('fdmYes');
+  if (yesBtn) yesBtn.disabled = true;
+}
+
+function fdmCheckInput() {
+  const input = document.getElementById('fdmInput');
+  const yesBtn = document.getElementById('fdmYes');
+  if (!input || !yesBtn) return;
+  yesBtn.disabled = input.value.trim() !== (currentFamilyName || '').trim() || !input.value.trim();
+}
+
+// Egy subcollection összes dokumentumát törli, 450-es batch-ekben
+// (a Firestore batch limitje 500 írás — biztonsági ráhagyással).
+async function fdmDeleteAllDocs(collRef) {
+  const snap = await collRef.get();
+  const docs = snap.docs;
+  for (let i = 0; i < docs.length; i += 450) {
+    const batch = db.batch();
+    docs.slice(i, i + 450).forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+
+async function performDeleteFamily() {
+  const input = document.getElementById('fdmInput');
+  if (!input || input.value.trim() !== (currentFamilyName || '').trim() || !currentFamilyId) return;
+
+  const yesBtn = document.getElementById('fdmYes');
+  const noBtn = document.getElementById('fdmNo');
+  if (yesBtn) { yesBtn.disabled = true; yesBtn.textContent = t('fdmYesBusy'); }
+  if (noBtn) noBtn.disabled = true;
+
+  const familyId = currentFamilyId;
+  const familyRef = db.collection('families').doc(familyId);
+
+  try {
+    // Minden ismert subcollection kiürítése a family-dokumentum alól.
+    await fdmDeleteAllDocs(familyRef.collection('kids'));
+    await fdmDeleteAllDocs(familyRef.collection('entries'));
+    await fdmDeleteAllDocs(familyRef.collection('settlements'));
+    await fdmDeleteAllDocs(familyRef.collection('members'));
+    await fdmDeleteAllDocs(familyRef.collection('kidInviteCodes'));
+    await fdmDeleteAllDocs(familyRef.collection('shopping'));
+
+    // A szülő-szülő meghívó-kódok top-level collectionben élnek (monyk-shared/pairing.js
+    // mintája), a groupId mezőn keresztül hivatkoznak erre a családra — ezeket is töröljük.
+    const inviteSnap = await db.collection('inviteCodes')
+      .where('groupId', '==', familyId).get();
+    if (!inviteSnap.empty) {
+      const batch = db.batch();
+      inviteSnap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+
+    // Végül maga a family-dokumentum.
+    await familyRef.delete();
+  } catch (e) {
+    console.error('[MONYK Family] performDeleteFamily hiba:', e);
+    toast(t('fdmError'));
+    if (yesBtn) { yesBtn.disabled = false; yesBtn.textContent = t('fdmYes'); }
+    if (noBtn) noBtn.disabled = false;
+    return;
+  }
+
+  // Helyi állapot leválasztása — ugyanaz a takarítás, mint kilépésnél.
+  if (unsubKids) unsubKids();
+  if (unsubEntries) unsubEntries();
+  if (unsubFamilyDoc) unsubFamilyDoc();
+  if (unsubMembers) unsubMembers();
+  if (unsubSettlements) unsubSettlements();
+  if (unsubShopping) unsubShopping();
+  localStorage.removeItem('monyk_family_id');
+  currentFamilyId = null;
+  currentFamilySharedKasse = true;
+  familyMembers.splice(0, familyMembers.length);
+  familySettlements.splice(0, familySettlements.length);
+  kids.splice(0, kids.length);
+  items.splice(0, items.length);
+
+  closeDeleteFamilyModal();
+  closeSettings();
+  renderAll();
+  showFamilyPairingUI();
+  toast(t('fdmSuccess'));
+}
+
 
 // Bejelentkezés indításkor (anonim) — csak ez fut, nincs login képernyő
 function initFirebaseAuth() {
@@ -2647,72 +3140,6 @@ function initFirebaseAuth() {
   });
 }
 
-// 6-jegyű join-kód generálása (ütközés-ellenőrzéssel)
-async function generateUniqueInviteCode() {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const existing = await db.collection('inviteCodes').doc(code).get();
-    if (!existing.exists) return code;
-  }
-  throw new Error('Nem sikerult egyedi kodot generalni');
-}
-
-// Új család létrehozása (ha nincs még familyId-nk)
-async function createFamily(familyName, sharedKasse = true) {
-  if (!currentUid) throw new Error('Nincs bejelentkezve (uid hianyzik)');
-  const inviteCode = await generateUniqueInviteCode();
-
-  const familyRef = db.collection('families').doc();
-  const familyId = familyRef.id;
-
-  await familyRef.set({
-    name: familyName,
-    sharedKasse: sharedKasse,
-    inviteCode: inviteCode,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  // A member doc ID = uid (ez kell a security rules exists() ellenorzeshez)
-  await familyRef.collection('members').doc(currentUid).set({
-    deviceName: getDeviceName(),
-    joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    role: 'parent'
-  });
-
-  await db.collection('inviteCodes').doc(inviteCode).set({
-    familyId: familyId
-  });
-
-  currentFamilyId = familyId;
-  localStorage.setItem('monyk_family_id', familyId);
-  return { familyId, inviteCode };
-}
-
-// Csatlakozás egy meglévő családhoz kód alapján
-async function joinFamilyByCode(code) {
-  if (!currentUid) throw new Error('Nincs bejelentkezve (uid hianyzik)');
-  const codeDoc = await db.collection('inviteCodes').doc(code).get();
-  if (!codeDoc.exists) throw new Error('Érvénytelen kód');
-
-  const { familyId } = codeDoc.data();
-  const familyRef = db.collection('families').doc(familyId);
-
-  // Előbb írjuk be magunkat tagnak (uid alapján ezt a security rules engedi),
-  // csak utána olvassuk be a család adatait — mert az olvasáshoz már tagság kell.
-  await familyRef.collection('members').doc(currentUid).set({
-    deviceName: getDeviceName(),
-    joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    role: 'parent'
-  });
-
-  const familyDoc = await familyRef.get();
-  if (!familyDoc.exists) throw new Error('A család már nem létezik');
-
-  currentFamilyId = familyId;
-  localStorage.setItem('monyk_family_id', familyId);
-  return { familyId, familyName: familyDoc.data().name };
-}
-
 // Egyszerű eszköznév (a member dokumentumhoz)
 function getDeviceName() {
   let name = localStorage.getItem('monyk_device_name');
@@ -2724,25 +3151,90 @@ function getDeviceName() {
   return name;
 }
 
-// QR + kód megjelenítés a join-kódhoz
-function showInviteCodeUI(containerId, code) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  el.innerHTML = `
-    <div style="text-align:center;padding:20px;">
-      <div id="famQrBox" style="display:inline-block;padding:12px;background:#fff;border-radius:12px;"></div>
-      <div style="font-size:13px;color:var(--muted);margin:14px 0 6px;">Megosztasi kod</div>
-      <div style="font-size:32px;font-weight:900;letter-spacing:4px;">${code}</div>
-    </div>`;
-  try {
-    new QRCode(document.getElementById('famQrBox'), {
-      text: code,
-      width: 180,
-      height: 180,
-      colorDark: '#1B1B23',
-      colorLight: '#ffffff'
-    });
-  } catch (e) { console.warn('[MONYK Family] QR generalas hiba:', e); }
+// ── PAIRING: közös monyk-shared/pairing.js modulra bekötve ────
+// (kód-generálás, create/join Firestore-logika, QR-scan flow, UI-váz
+// mind a modulban van — itt csak a Family-specifikus bekötés marad:
+// a kassza-választó extra UI, és hogy mi történjen sikeres
+// create/join után. Lásd MONYK_Shared_Pairing_todo.md 1. szakasz.)
+let fpSharedKasseChoice = true;
+function fpSelKassza(el) {
+  document.querySelectorAll('#familyPairing .fp-kassza-opt').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  fpSharedKasseChoice = el.dataset.shared === 'true';
+}
+
+// A Cloud Function deploy-a után (firebase deploy --only functions --project
+// monyk-family-7e1e5) ez a hívás aktívvá válik; addig a callable hiányzik a
+// backendről, de a hívás maga nem dob hibát kliensoldalon — a pairing.js a
+// checkJoinRateLimit hookot try/catch nélkül várja el, ezért itt kezeljük,
+// hogy ha még nincs deployolva a function, ne akadjon el a csatlakozás.
+const checkJoinRateLimitCallable = firebase.functions().httpsCallable('checkJoinRateLimit');
+
+MonykPairing.init({
+  db: db,
+  firebase: firebase,
+  getUid: () => currentUid,
+  checkJoinRateLimit: async () => {
+    try {
+      await checkJoinRateLimitCallable();
+    } catch (e) {
+      if (e && e.code === 'functions/not-found') {
+        console.warn('[MONYK Family] checkJoinRateLimit még nincs deployolva, kihagyva.');
+        return;
+      }
+      throw e; // pl. 'resource-exhausted' — ezt a pairing.js megjeleníti
+    }
+  },
+  getDeviceName: getDeviceName,
+  collectionName: 'families',
+  role: 'parent',
+  multiMember: false,
+  containerId: 'familyPairing',
+  labels: {
+    mainTitle: 'Család összekapcsolása',
+    mainSubtitle: 'Hozz létre új családot, vagy csatlakozz egy másik szülő által már létrehozotthoz.',
+    createBtn: '+ Új család létrehozása',
+    joinBtn: 'Csatlakozás kóddal',
+    createTitle: 'Új család',
+    createSubtitle: 'Adj nevet a családodnak.',
+    namePlaceholder: 'pl. Kovacs csalad',
+    createSubmitBtn: 'Létrehozás',
+    joinTitle: 'Csatlakozas',
+    joinSubtitle: 'Írd be a másik szülőtől kapott 6-jegyű kódot, vagy olvasd be a QR-kódját.',
+    joinSubmitBtn: 'Csatlakozas',
+    doneTitle: 'Kész!',
+    doneSubtitle: 'Oszd meg ezt a kódot / QR-t a másik szülővel, hogy ő is csatlakozhasson.',
+    doneFinishBtn: 'Tovább az apphoz'
+  },
+  // Family-specifikus extra lépés a "create" képernyőn: közös kassza vs. külön elszámolás
+  extraCreateStepHtml: `
+    <style>
+      #familyPairing .fp-kassza-lbl { font-size:12px; color:var(--muted); margin-bottom:8px; text-align:left; }
+      #familyPairing .fp-kassza-opt { width:100%; display:block; padding:12px; margin-bottom:8px; border:2px solid var(--border); border-radius:12px; background:transparent; color:var(--text); font-weight:700; font-size:13px; text-align:left; font-family:inherit; cursor:pointer; }
+      #familyPairing .fp-kassza-opt.on { border-color:var(--acc); background:rgba(255,255,255,.06); }
+    </style>
+    <div class="fp-kassza-lbl">Hogyan kezelitek a kiadásokat?</div>
+    <button type="button" class="fp-kassza-opt on" id="fpKasszaShared" data-shared="true" onclick="fpSelKassza(this)">💰 Közös kasszából fizetünk</button>
+    <button type="button" class="fp-kassza-opt" id="fpKasszaSplit" data-shared="false" onclick="fpSelKassza(this)">🧾 Külön költünk, elszámolunk</button>`,
+  getExtraCreateData: () => ({ sharedKasse: fpSharedKasseChoice }),
+  onCreated: ({ groupId, groupName }) => {
+    currentFamilyId = groupId;
+    currentFamilyName = groupName;
+    currentFamilySharedKasse = fpSharedKasseChoice;
+    localStorage.setItem('monyk_family_id', groupId);
+  },
+  onJoined: ({ groupId, groupName }) => {
+    currentFamilyId = groupId;
+    currentFamilyName = groupName;
+    localStorage.setItem('monyk_family_id', groupId);
+  },
+  onFinish: () => {
+    if (currentFamilyId) attachFamilyListeners(currentFamilyId);
+  }
+});
+
+function showFamilyPairingUI() {
+  MonykPairing.show();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2882,6 +3374,8 @@ function attachFamilyListeners(familyId) {
     const d = doc.data();
     currentFamilyName = d.name || currentFamilyName;
     currentFamilySharedKasse = d.sharedKasse !== false;
+    currentFamilySplitRatio = (typeof d.splitRatio === 'number' && d.splitRatio >= 0 && d.splitRatio <= 100) ? d.splitRatio : 50;
+    currentCategoryBudgets = (d.categoryBudgets && typeof d.categoryBudgets === 'object') ? d.categoryBudgets : {};
     // Ha épp nyitva van a Beállítások vagy az Add modal, frissítjük a rájuk épülő UI-t
     if (typeof refreshSharedKasseUI === 'function') refreshSharedKasseUI();
     renderAll();
@@ -2964,229 +3458,40 @@ function attachFamilyListeners(familyId) {
         reminder: d.reminder || null,
         reminderTime: d.reminderTime || null,
         megjegyzes: d.megjegyzes || '',
-        paidBy: d.paidBy || null // v78: ki fizette (uid) — csak sharedKasse:false esetén releváns
+        paidBy: d.paidBy || null, // v78: ki fizette (uid) — csak sharedKasse:false esetén releváns
+        // v85: a Kids app (gyerek saját naplója) 'bevetel'/'kiadas' típusú tételeket és
+        // rogzitette:'kid' jelzést ír ugyanebbe az entries collectionbe. Eddig ez a mapper
+        // nem olvasta be egyiket sem, ezért a openKdo()/renderKdoKiadasok() v84-es
+        // tipus!=='bevetel' szűrése ténylegesen soha nem szűrt semmit (i.tipus mindig
+        // undefined volt). Mostantól mindkét mező be van olvasva.
+        tipus: d.tipus || 'kiadas',
+        rogzitette: d.rogzitette || 'szulo'
       });
     });
     items.splice(0, items.length, ...newItems);
     if (!_elfoEntriesLoaded) { _elfoEntriesLoaded = true; _maybeAutoGenElfo(); }
     renderAll();
   }, err => console.error('[MONYK Family] entries onSnapshot hiba:', err));
-}
-function showFamilyPairingUI() {
-  if (document.getElementById('familyPairing')) return;
-  const el = document.createElement('div');
-  el.id = 'familyPairing';
-  el.innerHTML = `
-<style>
-#familyPairing { position:fixed; inset:0; z-index:9500; background:var(--bg2); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; font-family:var(--font-body); }
-#familyPairing .fp-card { width:100%; max-width:360px; text-align:center; }
-#familyPairing h2 { font-size:22px; font-weight:900; margin-bottom:8px; }
-#familyPairing p { font-size:14px; color:var(--muted); margin-bottom:24px; }
-#familyPairing button { width:100%; padding:16px; margin-bottom:12px; border:2px solid var(--border); border-radius:14px; background:var(--acc); color:#fff; font-weight:800; font-size:15px; font-family:inherit; cursor:pointer; }
-#familyPairing button.secondary { background:transparent; color:var(--text); }
-#familyPairing input { width:100%; padding:14px; margin-bottom:12px; border:2px solid var(--border); border-radius:12px; font-size:16px; text-align:center; letter-spacing:2px; font-family:inherit; }
-#familyPairing .fp-err { color:var(--red); font-size:13px; margin-bottom:12px; min-height:16px; }
-#familyPairing .fp-step { display:none; }
-#familyPairing .fp-step.on { display:block; }
-#familyPairing .fp-back { background:none; border:none; color:var(--muted); font-size:13px; margin-top:8px; }
-#familyPairing .fp-kassza-lbl { font-size:12px; color:var(--muted); margin-bottom:8px; text-align:left; }
-#familyPairing .fp-kassza-opt { width:100%; display:block; padding:12px; margin-bottom:8px; border:2px solid var(--border); border-radius:12px; background:transparent; color:var(--text); font-weight:700; font-size:13px; text-align:left; font-family:inherit; cursor:pointer; }
-#familyPairing .fp-kassza-opt.on { border-color:var(--acc); background:rgba(255,255,255,.06); }
-</style>
-<div class="fp-card">
 
-  <div class="fp-step on" id="fpStepMain">
-    <h2>Család összekapcsolása</h2>
-    <p>Hozz letre uj csaladot, vagy csatlakozz egy masik szulo altal mar letrehozotthoz.</p>
-    <button onclick="fpShowStep('fpStepCreate')">+ Új család létrehozása</button>
-    <button class="secondary" onclick="fpShowStep('fpStepJoin')">Csatlakozás kóddal</button>
-  </div>
-
-  <div class="fp-step" id="fpStepCreate">
-    <h2>Új család</h2>
-    <p>Adj nevet a családodnak.</p>
-    <input id="fpFamilyName" placeholder="pl. Kovacs csalad" maxlength="40">
-    <div class="fp-kassza-lbl">Hogyan kezelitek a kiadásokat?</div>
-    <button type="button" class="fp-kassza-opt on" id="fpKasszaShared" data-shared="true" onclick="fpSelKassza(this)">💰 Közös kasszából fizetünk</button>
-    <button type="button" class="fp-kassza-opt" id="fpKasszaSplit" data-shared="false" onclick="fpSelKassza(this)">🧾 Külön költünk, elszámolunk</button>
-    <div class="fp-err" id="fpCreateErr"></div>
-    <button onclick="fpDoCreate()">Létrehozás</button>
-    <button class="fp-back" onclick="fpShowStep('fpStepMain')">Vissza</button>
-  </div>
-
-  <div class="fp-step" id="fpStepJoin">
-    <h2>Csatlakozas</h2>
-    <p>Írd be a másik szülőtől kapott 6-jegyű kódot, vagy olvasd be a QR-kódját.</p>
-    <button type="button" class="secondary" id="fpScanBtn" onclick="fpScanQr()" style="display:none;">📷 QR-kód beolvasása</button>
-    <input id="fpJoinCode" placeholder="123456" maxlength="6" inputmode="numeric">
-    <div class="fp-err" id="fpJoinErr"></div>
-    <button onclick="fpDoJoin()">Csatlakozas</button>
-    <button class="fp-back" onclick="fpShowStep('fpStepMain')">Vissza</button>
-  </div>
-
-  <div class="fp-step" id="fpStepDone">
-    <h2>Kész!</h2>
-    <p>Oszd meg ezt a kódot / QR-t a másik szülővel, hogy ő is csatlakozhasson.</p>
-    <div id="fpQrContainer"></div>
-    <button onclick="fpFinish()">Tovább az apphoz</button>
-  </div>
-
-</div>`;
-  document.body.appendChild(el);
-  // A QR-beolvasó gomb akkor jelenik meg, ha a böngésző/PWA tudja használni a kamerát
-  // (getUserMedia) — ez PWA-ban és Capacitor WebView-ban is működik, natív híd nélkül.
-  const scanBtn = document.getElementById('fpScanBtn');
-  if (scanBtn && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
-    scanBtn.style.display = '';
-  }
-}
-
-function fpShowStep(stepId) {
-  document.querySelectorAll('#familyPairing .fp-step').forEach(s => s.classList.remove('on'));
-  document.getElementById(stepId).classList.add('on');
-}
-
-// v78: közös kassza vs. külön elszámolás választó az új család létrehozásakor
-let fpSharedKasseChoice = true;
-function fpSelKassza(el) {
-  document.querySelectorAll('#familyPairing .fp-kassza-opt').forEach(b => b.classList.remove('on'));
-  el.classList.add('on');
-  fpSharedKasseChoice = el.dataset.shared === 'true';
-}
-
-async function fpDoCreate() {
-  const nameInput = document.getElementById('fpFamilyName');
-  const errEl = document.getElementById('fpCreateErr');
-  const name = nameInput.value.trim();
-  errEl.textContent = '';
-  if (!name) { errEl.textContent = 'Adj meg egy nevet.'; return; }
-  try {
-    const { inviteCode } = await createFamily(name, fpSharedKasseChoice);
-    currentFamilyName = name;
-    currentFamilySharedKasse = fpSharedKasseChoice;
-    fpShowStep('fpStepDone');
-    showInviteCodeUI('fpQrContainer', inviteCode);
-  } catch (e) {
-    console.error('[MONYK Family] createFamily hiba:', e);
-    errEl.textContent = 'Hiba: ' + (e.code || '') + ' ' + (e.message || e);
-  }
-}
-
-// ── QR-BEOLVASÁS (böngésző/PWA-kamera, jsQR) ──────────────────
-// Egyelőre tisztán web-es megoldás: `getUserMedia`-val megnyitjuk a hátsó
-// kamerát egy teljes képernyős overlay-ben, és a videó-képkockákat `jsQR`-rel
-// dekódoljuk. Ez PWA-ban és böngészőben is működik, és Capacitor-csomagolás
-// után is működni fog ugyanígy (a WebView ugyanazt a kamera-API-t látja) —
-// később, ha kell a natívabb kamera-élmény, lecserélhető egy Capacitor
-// barkód-scanner pluginra, de addig ez a közös alap mindkét platformon.
-let _qrScanStream = null;
-let _qrScanRAF = null;
-
-function fpScanQr() {
-  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
-    toast('⚠️ A kamera nem érhető el ezen az eszközön/böngészőben');
-    return;
-  }
-  _openQrScanOverlay();
-}
-
-function _openQrScanOverlay() {
-  if (document.getElementById('qrScanOverlay')) return;
-  const el = document.createElement('div');
-  el.id = 'qrScanOverlay';
-  el.style.cssText = 'position:fixed;inset:0;z-index:9700;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;';
-  el.innerHTML = `
-    <video id="qrScanVideo" playsinline autoplay muted style="width:100%;max-width:420px;border-radius:16px;"></video>
-    <div id="qrScanErr" style="color:#fff;font-size:13px;margin-top:14px;min-height:16px;text-align:center;padding:0 24px;"></div>
-    <button type="button" onclick="_closeQrScanOverlay()" style="margin-top:18px;padding:14px 28px;border:2px solid rgba(255,255,255,.4);border-radius:14px;background:transparent;color:#fff;font-weight:800;font-size:14px;font-family:inherit;cursor:pointer;">Mégse</button>
-  `;
-  document.body.appendChild(el);
-
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-    .then(stream => {
-      _qrScanStream = stream;
-      const video = document.getElementById('qrScanVideo');
-      if (!video) { _stopQrStream(); return; }
-      video.srcObject = stream;
-      video.setAttribute('playsinline', true);
-      video.play();
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const tick = () => {
-        if (!document.getElementById('qrScanOverlay')) return; // overlay bezárva
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const result = typeof jsQR === 'function' ? jsQR(imageData.data, imageData.width, imageData.height) : null;
-          if (result && result.data) {
-            _closeQrScanOverlay();
-            window.onQrScanResult(result.data);
-            return;
-          }
-        }
-        _qrScanRAF = requestAnimationFrame(tick);
-      };
-      _qrScanRAF = requestAnimationFrame(tick);
-    })
-    .catch(err => {
-      console.error('[MONYK Family] getUserMedia hiba:', err);
-      const errEl = document.getElementById('qrScanErr');
-      if (errEl) errEl.textContent = 'Nem sikerült elérni a kamerát (engedély hiányzik?)';
+  // v87: közös bevásárló/teendő-lista — ugyanaz az onSnapshot minta, mint az entries-nél,
+  // saját `shopping` subcollectionben, egyszerű {text, done, createdAt} dokumentumokkal.
+  if (unsubShopping) unsubShopping();
+  unsubShopping = familyRef.collection('shopping').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    const newList = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      newList.push({
+        firestoreId: doc.id,
+        text: d.text || '',
+        done: !!d.done,
+        createdAt: d.createdAt || null
+      });
     });
+    shoppingList.splice(0, shoppingList.length, ...newList);
+    if (typeof renderShoppingList === 'function') renderShoppingList();
+    if (typeof updateShopBadge === 'function') updateShopBadge();
+  }, err => console.error('[MONYK Family] shopping onSnapshot hiba:', err));
 }
-
-function _stopQrStream() {
-  if (_qrScanRAF) { cancelAnimationFrame(_qrScanRAF); _qrScanRAF = null; }
-  if (_qrScanStream) { _qrScanStream.getTracks().forEach(t => t.stop()); _qrScanStream = null; }
-}
-
-function _closeQrScanOverlay() {
-  _stopQrStream();
-  const el = document.getElementById('qrScanOverlay');
-  if (el) el.remove();
-}
-
-// A dekódolt QR-tartalmat ez dolgozza fel (a meghívó-kód QR-je egy sima 6-jegyű
-// szám, lásd showInviteCodeUI — a biztonság kedvéért kiszűrjük belőle az első
-// 6 számjegyet, ha esetleg más szöveg is kerülne bele).
-window.onQrScanResult = function(text) {
-  const codeInput = document.getElementById('fpJoinCode');
-  const errEl = document.getElementById('fpJoinErr');
-  if (!codeInput) return; // nem a csatlakozás képernyőn vagyunk épp
-  const match = String(text || '').match(/\d{6}/);
-  if (!match) {
-    if (errEl) errEl.textContent = 'A beolvasott kód nem érvényes.';
-    return;
-  }
-  codeInput.value = match[0];
-  if (errEl) errEl.textContent = '';
-  fpDoJoin();
-};
-
-async function fpDoJoin() {
-  const codeInput = document.getElementById('fpJoinCode');
-  const errEl = document.getElementById('fpJoinErr');
-  const code = codeInput.value.trim();
-  errEl.textContent = '';
-  if (!/^\d{6}$/.test(code)) { errEl.textContent = 'A kód 6 számból áll.'; return; }
-  try {
-    const { familyName } = await joinFamilyByCode(code);
-    currentFamilyName = familyName;
-    fpFinish();
-  } catch (e) {
-    console.error('[MONYK Family] joinFamilyByCode hiba:', e);
-    errEl.textContent = 'Hiba: ' + (e.code || '') + ' ' + (e.message || e);
-  }
-}
-
-function fpFinish() {
-  const el = document.getElementById('familyPairing');
-  if (el) el.remove();
-  if (currentFamilyId) attachFamilyListeners(currentFamilyId);
-}
-
 // ── TAB NAV ──
 function goTab(t) {
   activeTab = t;
@@ -3446,7 +3751,7 @@ function renderKids() {
 
     ${kids.map(g => {
       const gi = curMonthItems.filter(i => i.gyerek === g.id);
-      const spent = gi.reduce((s,i) => s + i.osszeg, 0);
+      const spent = gi.filter(i=>i.tipus!=='bevetel').reduce((s,i) => s + i.osszeg, 0);
       const pct = g.budget > 0 ? Math.min(Math.round((g.zsebpenz + spent) / g.budget * 100), 100) : 0;
       const col = pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--warn)' : g.color;
       return `
@@ -3494,7 +3799,7 @@ function renderKids() {
   const kidCardsHtml = kids.map(g => {
     const gi = curMonthItems.filter(i => i.gyerek === g.id);
     const allGi = items.filter(i => i.gyerek === g.id);
-    const iskolaTotal = gi.reduce((s,i) => s + i.osszeg, 0);
+    const iskolaTotal = gi.filter(i=>i.tipus!=='bevetel').reduce((s,i) => s + i.osszeg, 0);
     const spent = g.zsebpenz + iskolaTotal;
     const pct = g.budget > 0 ? Math.min(Math.round(spent / g.budget * 100), 100) : 0;
     return `
@@ -3720,13 +4025,16 @@ function updateBudgetStrip() {
   // Aktuális hónap adatai
   const curDate = ripMonthDate(0);
   const curY = curDate.getFullYear(), curM = curDate.getMonth();
-  const curItems = ripGetItemsForMonth(curY, curM);
+  // v85: a gyerek-rögzítette 'bevetel' tételek (Kids app) nem kiadás, ezért a
+  // dashboard-összegekből (havi összeg, előző havi összehasonlítás, gyerekenkénti
+  // összesítő) kizárjuk őket — lásd a todo 129. pontjának megjegyzését.
+  const curItems = ripGetItemsForMonth(curY, curM).filter(i=>i.tipus!=='bevetel');
   const zsebTotal = kids.reduce((s,g)=>s+g.zsebpenz,0);
   const total = curItems.reduce((s,i)=>s+i.osszeg,0) + zsebTotal;
 
   // Előző hónap összehasonlítás – csak akkor számolunk %-ot, ha tényleg van előző havi adat
   const prevDate = ripMonthDate(-1);
-  const prevItems = ripGetItemsForMonth(prevDate.getFullYear(), prevDate.getMonth());
+  const prevItems = ripGetItemsForMonth(prevDate.getFullYear(), prevDate.getMonth()).filter(i=>i.tipus!=='bevetel');
   const hasPrevData = prevItems.length > 0;
   const prevTotal = hasPrevData ? (prevItems.reduce((s,i)=>s+i.osszeg,0) + zsebTotal) : 0;
   const diff = total - prevTotal;
@@ -3780,9 +4088,23 @@ function updateBudgetStrip() {
   setStyle('bs-kid1-val', 'color', k1?.color || 'var(--green)');
 }
 
+// v-catBudget: kategóriák kanonikus (mindig magyar) neve → i18n kulcs, hogy a
+// families/{id}.categoryBudgets kulcsai (mindig 'Étkezés'/'Tanszer'/... maradnak,
+// nyelvtől függetlenül, ugyanúgy ahogy az items.kategoria mező is) lefordíthatók
+// legyenek a UI-n. Ugyanaz az 5 kategória, mint az Add modal cat-gombjainál.
+const CANONICAL_CAT_KEYS = {
+  'Étkezés':'catEtkezes', 'Tanszer':'catTanszer', 'Transport':'catTransport',
+  'Sport':'catSport', 'Egyéb':'catEgyeb'
+};
+function catLabel(n) { return CANONICAL_CAT_KEYS[n] ? t(CANONICAL_CAT_KEYS[n]) : n; }
+
 // v78: Elszámolás — csak akkor releváns, ha a család NEM közös kasszából fizet.
 // Csak a KIFIZETETT, paidBy-jal ellátott tételeket vesszük figyelembe (a régi,
 // paidBy nélküli tételeket figyelmen kívül hagyjuk, lásd todo 4. szakasz).
+// v-splitRatio: az 50-50%-os alapfeltevés helyett a currentFamilySplitRatio
+// (families/{id}.splitRatio, alapértelmezett 50) alapján számoljuk ki, hogy A-nak
+// mennyit "kellett volna" fizetnie — ha ez eltér a ténylegesen befizetett sumA-tól,
+// az a diff, ami elszámolandó.
 function ripCalcSettlement(y, m, mi) {
   if (familyMembers.length < 2) return null;
   const uidA = familyMembers[0].uid, uidB = familyMembers[1].uid;
@@ -3790,8 +4112,10 @@ function ripCalcSettlement(y, m, mi) {
   const sumA = paidItems.filter(i=>i.paidBy===uidA).reduce((s,i)=>s+i.osszeg,0);
   const sumB = paidItems.filter(i=>i.paidBy===uidB).reduce((s,i)=>s+i.osszeg,0);
   const totalPaid = sumA + sumB;
-  const diff = sumA - totalPaid / 2; // pozitív → A többet fizetett a felénél → B tartozik A-nak
-  return { uidA, uidB, sumA, sumB, diff };
+  const ratioA = (typeof currentFamilySplitRatio === 'number') ? currentFamilySplitRatio : 50;
+  const expectedA = totalPaid * (ratioA / 100);
+  const diff = sumA - expectedA; // pozitív → A többet fizetett a rá eső résznél → B tartozik A-nak
+  return { uidA, uidB, sumA, sumB, diff, ratioA };
 }
 
 async function settleMonth(y, m) {
@@ -3825,8 +4149,10 @@ function renderRiportFull(animDir) {
   const monthName = getMonthNames()[m];
   const cur = getCurrency();
 
-  // Adott hónap items-ei
-  const mi = ripGetItemsForMonth(y, m);
+  // Adott hónap items-ei (v85: a gyerek-rögzítette 'bevetel' tételeket kizárjuk az
+  // összesítésekből — a Kids app saját naplója számolja a bevételt, ide csak a
+  // családi kiadás tartozik, lásd todo 129. pont)
+  const mi = ripGetItemsForMonth(y, m).filter(i=>i.tipus!=='bevetel');
   // Zsebpénz csak az aktuális hónapban számít (offset=0)
   const zsebTotal = ripOffset === 0 ? kids.reduce((s,g)=>s+g.zsebpenz,0) : 0;
   const total = mi.reduce((s,i)=>s+i.osszeg,0) + zsebTotal;
@@ -3862,7 +4188,7 @@ function renderRiportFull(animDir) {
   const months3 = [-2,-1,0].map(rel => {
     const bd = ripMonthDate(ripOffset + rel);
     const by = bd.getFullYear(), bm = bd.getMonth();
-    const bi = ripGetItemsForMonth(by, bm);
+    const bi = ripGetItemsForMonth(by, bm).filter(i=>i.tipus!=='bevetel');
     const isCurrentRip = (ripOffset + rel) === 0;
     const bZseb = isCurrentRip ? kids.reduce((s,g)=>s+g.zsebpenz,0) : 0;
     const a = bi.filter(i=>i.gyerek===0).reduce((s,i)=>s+i.osszeg,0) + (isCurrentRip?kids.find(k=>k.id===0)?.zsebpenz||0:0);
@@ -3969,7 +4295,31 @@ function renderRiportFull(animDir) {
         </div>` : `<div class="rip-empty" style="padding:12px;"><div class="rip-empty-ico" style="font-size:22px;">–</div></div>`}
       </div>
 
-      <!-- Bar chart -->
+      <!-- v-catBudget: Kategória-keretek — csak akkor jelenik meg, ha van legalább 1 kategóriának
+           beállított havi keret (families/{id}.categoryBudgets). Az adott hónapban elköltött
+           összeget (catMap) veti össze a beállított kerettel, és jelzi a túllépést. -->
+      ${(() => {
+        const catBudgetEntries = Object.entries(currentCategoryBudgets || {}).filter(([n,b]) => b > 0);
+        if (!catBudgetEntries.length) return '';
+        const rows = catBudgetEntries.map(([n,b]) => {
+          const spent = catMap[n] || 0;
+          const pct = Math.min(Math.round(spent / b * 100), 100);
+          const over = spent > b;
+          const col = pct > 100 ? 'var(--red)' : pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--warn)' : (CAT_COLS[n] || '#a78bfa');
+          return `<div class="budget-bar" style="margin-top:12px;">
+            <div class="budget-bar-lbl">
+              <span>${catLabel(n)}${over ? ' ⚠️' : ''}</span>
+              <span style="${over ? 'color:var(--red);font-weight:800;' : ''}">${spent.toLocaleString('hu')} / ${b.toLocaleString('hu')} ${cur}</span>
+            </div>
+            <div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pct}%;background:${col};"></div></div>
+          </div>`;
+        }).join('');
+        return `<div class="rip-card ${animCls}">
+          <div class="rip-card-lbl">${t('katKeretCim')}</div>
+          ${rows}
+        </div>`;
+      })()}
+
       <div class="rip-card ${animCls}">
         <div class="rip-card-lbl">${t('utolso3ho')}</div>
         ${barHtml}
@@ -3992,12 +4342,17 @@ function renderRiportFull(animDir) {
           ? t('mindenEgyenlo')
           : (sres.diff > 0 ? t('tartozikMinta', nameB, nameA, amountStr) : t('tartozikMinta', nameA, nameB, amountStr));
         const alreadySettled = familySettlements.some(s => s.year===y && s.month===m);
+        const ratioA = sres.ratioA;
+        const ratioHint = (ratioA !== 50)
+          ? `<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">${t('splitRatioHint', nameA, ratioA, nameB, 100-ratioA)}</div>`
+          : '';
         return `<div class="rip-card ${animCls}">
           <div class="rip-card-lbl">${t('elszamolasCim')}</div>
           <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:8px;">
             <span>${nameA}: ${sres.sumA.toLocaleString('hu')} ${cur}</span>
             <span>${nameB}: ${sres.sumB.toLocaleString('hu')} ${cur}</span>
           </div>
+          ${ratioHint}
           <div style="font-size:14px;font-weight:800;margin-bottom:10px;">${settleText}</div>
           ${absDiff>=1 ? `<button class="so-add-kid-btn" onclick="settleMonth(${y},${m})">${t('kiegyenlitveGomb')}</button>` : ''}
           ${alreadySettled ? `<div style="font-size:11px;color:var(--green);margin-top:6px;">${t('marKiegyenlitve')}</div>` : ''}
@@ -4581,7 +4936,10 @@ function openKdo(id) {
   const _kNow = new Date();
   const _kY = _kNow.getFullYear(), _kM = _kNow.getMonth();
   const gi = items.filter(i=>i.gyerek===id && (() => { const d=parseLocalDate(i.datum); return d.getFullYear()===_kY && d.getMonth()===_kM; })());
-  const iskola = gi.reduce((s,i)=>s+i.osszeg,0);
+  // v84 (2026-07-05): a Kids app 'bevetel' típusú tételei (gyerek saját bevétele) NEM
+  // számítanak bele a havi "elköltött" összegbe — csak a kiadás ('kiadas' vagy nincs
+  // tipus mező, ami a szülői appból felvett régi tételeknél a default) számít ide.
+  const iskola = gi.filter(i=>i.tipus!=='bevetel').reduce((s,i)=>s+i.osszeg,0);
   const total = g.zsebpenz + iskola;
   const pct = Math.min(Math.round(total/g.budget*100),100);
   document.getElementById('kdo-hero').innerHTML = `
@@ -4633,7 +4991,10 @@ function renderKdoBody() {
 
 function renderKdoKiadasok(g) {
   const gi = items.filter(i=>i.gyerek===g.id).sort((a,b)=>new Date(a.datum)-new Date(b.datum));
-  const total = gi.reduce((s,i)=>s+i.osszeg,0);
+  // v84 (2026-07-05): ugyanaz a 'bevetel' kizárás, mint a hero összegnél — ez a lista
+  // maga továbbra is minden tételt mutat (bevétel is), csak az összesítő badge nem
+  // számolja bele a bevételt "elköltött"-ként.
+  const total = gi.filter(i=>i.tipus!=='bevetel').reduce((s,i)=>s+i.osszeg,0);
   if(!gi.length) return `<div class="empty"><div class="empty-ico">✅</div><div class="empty-txt">${t('nincskiad')}</div></div>`;
   return `
     <div style="background:var(--bg2);border:1.5px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
@@ -5751,9 +6112,15 @@ function openSettings() {
   const el = (id,txt) => { const e=document.getElementById(id); if(e) e.textContent=txt; };
   el('so-lbl-tema',      t('familiaTheme'));
   el('so-lbl-nyelv',     t('nyelvSec'));
+  el('so-lbl-export',    t('exportCim'));
   el('so-lbl-gyerekek',  t('gyerekekSec'));
   el('so-btn-ujgyerek',  t('ujGyerek'));
   el('so-save-btn',      t('mentesGomb'));
+  el('so-lbl-biztonsag', t('soBiztonsagLbl'));
+  el('so-pin-lbl', t('soPinRowLbl'));
+  el('so-bio-lbl', t('soBioRowLbl'));
+  famRenderSecuritySettings();
+  renderAccountSettingsUI();
 
   document.querySelectorAll('#so-lang-row .szamla-chip').forEach(c=>{
     c.classList.toggle('on', c.dataset.lang===appLang);
@@ -5767,6 +6134,12 @@ function openSettings() {
   el('so-kassza-sub', t('kozosKasszaSub'));
   const kasszaToggle = document.getElementById('soKasszaToggle');
   if (kasszaToggle) kasszaToggle.checked = currentFamilySharedKasse;
+
+  // Elszámolási arány (splitRatio) — csak külön-elszámolás módban, és ha van 2 tag
+  renderSplitRatioSection();
+
+  // Kategória-keretek (categoryBudgets)
+  renderCategoryBudgetsSettingsUI();
 
   // App téma
   document.getElementById('soAppTheme').innerHTML = APP_THEMES.map(th=>`
@@ -5834,8 +6207,83 @@ function openSettings() {
 
 function saveSettings() { saveLS(); toast('✅ ' + t('mentes')); closeSettings(); renderAll(); }
 
-// v78: Közös kassza kapcsoló — a Beállításokból írható, mindkét szülő eszközén
-// élőben frissül (lásd attachFamilyListeners → unsubFamilyDoc onSnapshot).
+// v-splitRatio: a splitRatio szekció csak akkor jelenik meg, ha a család NEM közös
+// kasszából fizet (currentFamilySharedKasse===false) ÉS van legalább 2 ismert tag
+// (a families[id].splitRatio mezőt módosítja, alapértelmezett 50 = 50-50%).
+function renderSplitRatioSection() {
+  const section = document.getElementById('so-splitratio-section');
+  if (!section) return;
+  const el = (id, txt) => { const e = document.getElementById(id); if(e) e.textContent = txt; };
+  const visible = !currentFamilySharedKasse && familyMembers.length >= 2;
+  section.style.display = visible ? '' : 'none';
+  if (!visible) return;
+  el('so-splitratio-lbl', t('splitRatioLbl'));
+  el('so-splitratio-sub', t('splitRatioSub'));
+  const nameA = memberDisplayName(familyMembers[0].uid);
+  const nameB = memberDisplayName(familyMembers[1].uid);
+  el('so-splitratio-nameA', nameA);
+  el('so-splitratio-nameB', nameB);
+  const slider = document.getElementById('soSplitRatioSlider');
+  if (slider) slider.value = currentFamilySplitRatio;
+  el('so-splitratio-val', t('splitRatioHint', nameA, currentFamilySplitRatio, nameB, 100 - currentFamilySplitRatio));
+}
+
+// Élő visszajelzés csúsztatás közben (Firestore-írás csak a "change" eseménynél, ld. setSplitRatio)
+function onSplitRatioSliderInput(value) {
+  const el = (id, txt) => { const e = document.getElementById(id); if(e) e.textContent = txt; };
+  const v = Number(value);
+  const nameA = familyMembers[0] ? memberDisplayName(familyMembers[0].uid) : '';
+  const nameB = familyMembers[1] ? memberDisplayName(familyMembers[1].uid) : '';
+  el('so-splitratio-val', t('splitRatioHint', nameA, v, nameB, 100 - v));
+}
+
+async function setSplitRatio(value) {
+  if (!currentFamilyId) return;
+  const v = Math.max(0, Math.min(100, Number(value)));
+  try {
+    await db.collection('families').doc(currentFamilyId).update({ splitRatio: v });
+  } catch (e) {
+    console.error('[MONYK Family] setSplitRatio hiba:', e);
+    toast('⚠️ Nem sikerült menteni (nincs kapcsolat?)');
+    const slider = document.getElementById('soSplitRatioSlider');
+    if (slider) slider.value = currentFamilySplitRatio; // visszaállítás a szerveren lévő értékre
+  }
+}
+
+// v-catBudget: a families/{id}.categoryBudgets beállítás-listája — az 5 kanonikus
+// kategórianévhez (CANONICAL_CAT_KEYS) egy-egy number input, mentés "blur"/"change"-kor,
+// hogy ne minden billentyűleütésnél menjen Firestore-írás.
+function renderCategoryBudgetsSettingsUI() {
+  const list = document.getElementById('so-katkeret-list');
+  if (!list) return;
+  const elTxt = (id, txt) => { const e = document.getElementById(id); if(e) e.textContent = txt; };
+  elTxt('so-katkeret-lbl', t('katKeretLbl'));
+  elTxt('so-katkeret-sub', t('katKeretSub'));
+  list.innerHTML = Object.keys(CANONICAL_CAT_KEYS).map(catName => {
+    const val = currentCategoryBudgets[catName] || 0;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <span style="font-size:12px;color:var(--muted);">${catLabel(catName)}</span>
+      <input type="number" inputmode="numeric" class="finput" style="max-width:110px;text-align:right;"
+        value="${val || ''}" placeholder="0"
+        data-cat="${catName}" onchange="setCategoryBudget('${catName}', this.value)">
+    </div>`;
+  }).join('');
+}
+
+async function setCategoryBudget(catName, value) {
+  if (!currentFamilyId) return;
+  const v = Math.max(0, parseInt(value) || 0);
+  const updated = Object.assign({}, currentCategoryBudgets, { [catName]: v });
+  try {
+    await db.collection('families').doc(currentFamilyId).update({ categoryBudgets: updated });
+  } catch (e) {
+    console.error('[MONYK Family] setCategoryBudget hiba:', e);
+    toast('⚠️ Nem sikerült menteni (nincs kapcsolat?)');
+    renderCategoryBudgetsSettingsUI(); // visszaállítás a szerveren lévő értékekre
+  }
+}
+
+
 async function toggleSharedKasse(checked) {
   if (!currentFamilyId) return;
   try {
@@ -5856,6 +6304,8 @@ function refreshSharedKasseUI() {
   const kasszaToggle = document.getElementById('soKasszaToggle');
   if (kasszaToggle && document.getElementById('settingsOv')?.classList.contains('open')) {
     kasszaToggle.checked = currentFamilySharedKasse;
+    renderSplitRatioSection();
+    renderCategoryBudgetsSettingsUI();
   }
   if (document.getElementById('addModal')?.classList.contains('on')) {
     renderPaidByChips();
@@ -5871,7 +6321,140 @@ function setKidTheme(id, color, el) {
   toast(`🎨 ${g.nev}`);
 }
 
+let unsubShopping = null;
+const shoppingList = []; // v87: közös bevásárló/teendő-lista (backlog 7. szakasz)
+
 function closeSettings() { document.getElementById('settingsOv').classList.remove('open'); }
+
+// v86: Teljes családi adat export (backlog 7. szakasz) — biztonsági háló, ha
+// a Firebase projekt/szinkron miatt adatvesztés történne. A már betöltött,
+// élő Firestore-listenerek által karbantartott helyi tömbökből épít JSON-t
+// (kids, items/entries, familyMembers, familySettlements), nem indít külön
+// Firestore-lekérdezést — így nincs plusz olvasási költség, és mindig azt
+// exportálja, amit az app épp aktuálisan lát.
+// v87: Közös bevásárló/teendő-lista gyerekekhez (backlog 7. szakasz) —
+// egyszerű, valós idejű lista, a `shopping` subcollectionben, ugyanazzal az
+// onSnapshot-mintával mint az entries-nél (lásd attachFamilyListeners).
+function openShoppingList() {
+  if (!document.getElementById('shopOv')) {
+    const el = document.createElement('div');
+    el.id = 'shopOv';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9400;background:var(--bg2);display:flex;flex-direction:column;font-family:var(--font-body);';
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid var(--border);">
+        <button onclick="closeShoppingList()" id="shop-back-btn" style="background:none;border:none;color:var(--text);font-size:15px;font-weight:700;"></button>
+        <div id="shop-title" style="font-weight:900;font-size:16px;"></div>
+      </div>
+      <div style="display:flex;gap:8px;padding:12px 16px;">
+        <input id="shopInput" type="text" style="flex:1;padding:12px;border:2px solid var(--border);border-radius:12px;background:transparent;color:var(--text);font-size:15px;font-family:inherit;" onkeydown="if(event.key==='Enter')addShoppingItem()">
+        <button onclick="addShoppingItem()" style="padding:0 18px;border:none;border-radius:12px;background:var(--acc);color:#fff;font-weight:800;font-size:15px;">+</button>
+      </div>
+      <div id="shopListBody" style="flex:1;overflow-y:auto;padding:0 16px 16px;"></div>
+    `;
+    document.body.appendChild(el);
+  }
+  document.getElementById('shop-back-btn').textContent = t('vissza2');
+  document.getElementById('shop-title').textContent = t('shopCim');
+  document.getElementById('shopInput').placeholder = t('shopPlaceholder');
+  document.getElementById('shopOv').style.display = 'flex';
+  renderShoppingList();
+}
+function closeShoppingList() {
+  const el = document.getElementById('shopOv');
+  if (el) el.style.display = 'none';
+}
+function renderShoppingList() {
+  const body = document.getElementById('shopListBody');
+  if (!body) return; // overlay meg nincs megnyitva egyszer sem — nincs mit frissíteni
+  if (!shoppingList.length) {
+    body.innerHTML = `<div style="text-align:center;color:var(--muted);font-size:13px;padding:32px 0;">${t('shopEmpty')}</div>`;
+    return;
+  }
+  body.innerHTML = shoppingList.map(item => `
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">
+      <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleShoppingItem('${item.firestoreId}', this.checked)" style="width:20px;height:20px;flex-shrink:0;">
+      <div style="flex:1;font-size:15px;${item.done ? 'text-decoration:line-through;color:var(--muted);' : ''}">${item.text.replace(/</g,'&lt;')}</div>
+      <button onclick="deleteShoppingItem('${item.firestoreId}')" style="background:none;border:none;color:var(--muted);font-size:16px;">${t('shopDelBtn')}</button>
+    </div>
+  `).join('');
+}
+function updateShopBadge() {
+  const btn = document.getElementById('shop-btn');
+  if (!btn) return;
+  const open = shoppingList.filter(i => !i.done).length;
+  let badge = btn.querySelector('.shop-badge');
+  if (open > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'shop-badge nbadge';
+      btn.appendChild(badge);
+    }
+    badge.style.display = '';
+    badge.textContent = open;
+  } else if (badge) {
+    badge.style.display = 'none';
+  }
+}
+async function addShoppingItem() {
+  const input = document.getElementById('shopInput');
+  const text = (input.value || '').trim();
+  if (!text || !currentFamilyId) return;
+  input.value = '';
+  try {
+    await db.collection('families').doc(currentFamilyId).collection('shopping').add({
+      text,
+      done: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    console.error('[MONYK Family] addShoppingItem hiba:', err);
+    alert(t('shopAddErr'));
+  }
+}
+async function toggleShoppingItem(firestoreId, checked) {
+  if (!currentFamilyId) return;
+  try {
+    await db.collection('families').doc(currentFamilyId).collection('shopping').doc(firestoreId).update({ done: checked });
+  } catch (err) {
+    console.error('[MONYK Family] toggleShoppingItem hiba:', err);
+  }
+}
+async function deleteShoppingItem(firestoreId) {
+  if (!currentFamilyId) return;
+  try {
+    await db.collection('families').doc(currentFamilyId).collection('shopping').doc(firestoreId).delete();
+  } catch (err) {
+    console.error('[MONYK Family] deleteShoppingItem hiba:', err);
+  }
+}
+
+function exportFamilyData() {
+  try {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      familyId: currentFamilyId || null,
+      sharedKasse: (typeof currentFamilySharedKasse !== 'undefined') ? currentFamilySharedKasse : null,
+      members: familyMembers,
+      kids: kids,
+      entries: items,
+      settlements: (typeof familySettlements !== 'undefined') ? familySettlements : []
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `monyk-family-export-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (err) {
+    console.error('[MONYK Family] exportFamilyData hiba:', err);
+    alert('Az exportálás nem sikerült: ' + (err && err.message ? err.message : err));
+  }
+}
 
 
 let tTO;
@@ -5923,6 +6506,7 @@ window.addEventListener('message', function(ev) {
     if(st) setAppTheme(st);
     const sdk = localStorage.getItem('familia_defkonyveles');
     if(sdk) defaultKonyveles = sdk;
+    // famSecSettings betöltését a monyk-shared/pin.js modul (MonykPin.init) végzi, nem itt.
   } catch(e) { console.warn('[MONYK]', e); }
   initAppSettings();
   generateElfoItems();
@@ -5955,6 +6539,45 @@ function saveLS() {
     localStorage.setItem('familia_items', JSON.stringify(items));
   } catch(e) { console.warn('[MONYK]', e); }
 }
+
+// ═══════════════════════════════════════════════
+// BIZTONSÁG — PIN kód + biometrikus zár (11. szakasz)
+// A logika a közös monyk-shared/pin.js modulba lett kiemelve (2026-07-05),
+// ugyanabból a forrásból, mint a fő MONYK app biztonsági rétege.
+// A globális fam*-nevek megmaradtak (HTML onclick-attribútumok miatt),
+// csak vékony wrapperek a MonykPin.* hívásokra.
+// ═══════════════════════════════════════════════
+MonykPin.init({
+  idPrefix: 'fam',
+  storageKey: 'familia_security',
+  bioCredKey: 'monyk_family_bio_cred',
+  saltSuffix: 'monyk_family_salt',
+  pinLength: FAM_PIN_LENGTH,
+  appName: 'MONYK Family',
+  showToast: (msg) => toast(msg),
+  t: (key) => t(key),
+  onUnlock: () => famAfterUnlock(),
+  dotClass: 'fam-pin-dot'
+});
+let famSecSettings = MonykPin.getSettings();
+
+function famOpenPinOverlay(mode){ MonykPin.openPinOverlay(mode); }
+function famClosePinOverlay(){ MonykPin.closePinOverlay(); }
+function famCancelPinOverlay(){ MonykPin.cancelPinOverlay(); }
+function famPinDigit(d){ MonykPin.pinDigit(d); }
+function famPinBackspace(){ MonykPin.pinBackspace(); }
+function famTryBiometric(){ MonykPin.tryBiometric(); }
+function famIsBiometricSupported(){ return MonykPin.isBiometricSupported(); }
+function famRenderSecuritySettings(){ MonykPin.renderSecuritySettings(); }
+function famHandlePinButtonClick(){ MonykPin.handlePinButtonClick(); }
+function famHandleBioButtonClick(){ return MonykPin.handleBioButtonClick(); }
+function famStartupFlow(){ MonykPin.startupFlow(); }
+function famAfterUnlock(){
+  // A zár feloldása után nincs extra teendő — az app már a háttérben renderelve várt.
+}
+
+famStartupFlow();
+
 
 goTab(0);
 
