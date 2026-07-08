@@ -3326,15 +3326,22 @@ async function performDeleteFamily() {
 
   try {
     // Minden ismert subcollection kiürítése a family-dokumentum alól.
+    // FONTOS SORREND: a `members` subcollectiont (a saját tagságunkat) LEGUTOLJÁRA
+    // töröljük — a Firestore rules minden itteni műveletet isFamilyMember()-hez köt
+    // (ld. firestore.rules), tehát ha a tagság-dokumentum korábban törlődik, minden
+    // utána jövő lépés (kidInviteCodes, shopping, inviteCodes, maga a family doc)
+    // permission-denied hibával elhasal. (2026-07-08 — korábbi bug, a `members` a
+    // 4. lépésben törlődött, ez okozta a "nem sikerült teljesen törölni" hibát.)
     await fdmDeleteAllDocs(familyRef.collection('kids'));
     await fdmDeleteAllDocs(familyRef.collection('entries'));
     await fdmDeleteAllDocs(familyRef.collection('settlements'));
-    await fdmDeleteAllDocs(familyRef.collection('members'));
     await fdmDeleteAllDocs(familyRef.collection('kidInviteCodes'));
     await fdmDeleteAllDocs(familyRef.collection('shopping'));
 
     // A szülő-szülő meghívó-kódok top-level collectionben élnek (monyk-shared/pairing.js
     // mintája), a groupId mezőn keresztül hivatkoznak erre a családra — ezeket is töröljük.
+    // (Ehhez a firestore.rules-ban az inviteCodes/{code} allow delete szabálynak
+    // engednie kell a családtagoknak — ld. 2026-07-08-i rules-javítás.)
     const inviteSnap = await db.collection('inviteCodes')
       .where('groupId', '==', familyId).get();
     if (!inviteSnap.empty) {
@@ -3343,8 +3350,13 @@ async function performDeleteFamily() {
       await batch.commit();
     }
 
-    // Végül maga a family-dokumentum.
+    // A family-dokumentum — ez is isFamilyMember()-t igényel, tehát még a
+    // tagság-törlés ELŐTT kell megtörténnie.
     await familyRef.delete();
+
+    // Legutoljára a members subcollection — innentől már nincs több
+    // művelet, ami a tagságot feltételezné.
+    await fdmDeleteAllDocs(familyRef.collection('members'));
   } catch (e) {
     console.error('[MONYK Family] performDeleteFamily hiba:', e);
     toast(t('fdmError'));
