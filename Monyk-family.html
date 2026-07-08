@@ -18,6 +18,7 @@
 <script src="googleAuth.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<script src="paymentQr.js"></script>
 <!-- MONYK közös pairing-modul (build-időben bemásolva, lásd MONYK_Shared_Pairing_todo.md 1-2. szakasz) -->
 <script src="pairing.js"></script>
 <script src="pin.js"></script>
@@ -76,7 +77,22 @@ body[class*="theme-"] .bs-amount, body[class*="theme-"] .bs-mini-val, body[class
 html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   font-family:var(--font-body,'Bricolage Grotesque'),-apple-system,sans-serif; transition:background .25s,color .25s; }
 
-.shell { position:fixed;inset:0;display:flex;flex-direction:column;max-width:430px;margin:0 auto;background:var(--bg); }
+.shell { position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg); }
+
+/* ── PC/széles nézet — 2026-07-08 döntés: nincs külön desktop layout,
+   csak középre igazítjuk a mobil nézetet, hogy ne nyúljon szét ── */
+@media (min-width:900px){
+  body{
+    background:radial-gradient(ellipse at top, color-mix(in srgb, var(--acc) 6%, var(--bg)), var(--bg));
+  }
+  .shell{
+    max-width:480px;
+    margin:0 auto;
+    border-left:2px solid var(--border);
+    border-right:2px solid var(--border);
+    box-shadow:0 0 60px rgba(0,0,0,.25);
+  }
+}
 
 /* ─── HEADER ─── */
 .header {
@@ -229,7 +245,7 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
 /* ─── SETTINGS OVERLAY ─── */
 .settings-overlay { position:fixed;inset:0;z-index:80;background:var(--bg);
   transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);
-  display:flex;flex-direction:column;max-width:430px;margin:0 auto; }
+  display:flex;flex-direction:column;}
 .settings-overlay.open { transform:translateX(0); }
 .so-header { padding:16px 18px 14px;background:var(--hero);
   border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0; }
@@ -269,6 +285,11 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
 .sec-status.on { color:var(--green); }
 .sec-status.off { color:var(--muted); }
 
+/* Veszélyzóna — a beállítások alján, elkülönítve a véletlen koppintás ellen */
+.so-danger-zone { margin-top:26px;padding:14px 14px 4px;border:1.5px dashed rgba(239,68,68,.3);
+  border-radius:16px;background:rgba(239,68,68,.04); }
+.so-danger-zone-lbl { color:#f87171 !important; }
+
 /* ── PIN zárolás (Biztonság — 11. szakasz) ── */
 .fam-pin-overlay { position:fixed;inset:0;z-index:9800;background:var(--bg);display:none;
   flex-direction:column;align-items:center;justify-content:center;padding:26px;font-family:inherit; }
@@ -307,7 +328,7 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
 /* ─── ELFOGLALTSÁG OVERLAY ─── */
 .elfo-overlay { position:fixed;inset:0;z-index:75;background:var(--bg);
   transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);
-  display:flex;flex-direction:column;max-width:430px;margin:0 auto; }
+  display:flex;flex-direction:column;}
 .elfo-overlay.open { transform:translateX(0); }
 .elfo-header { padding:16px 18px 14px;background:var(--hero);
   border-bottom:1px solid var(--border);flex-shrink:0;
@@ -517,7 +538,7 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
 /* ─── KID PROFILE OVERLAY ─── */
 .profile-overlay { position:fixed;inset:0;z-index:70;background:var(--bg);
   transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);
-  display:flex;flex-direction:column;max-width:430px;margin:0 auto; }
+  display:flex;flex-direction:column;}
 .profile-overlay.open { transform:translateX(0); }
 .po-header { padding:16px 18px 20px;background:var(--hero);border-bottom:1px solid var(--border);
   flex-shrink:0; }
@@ -590,6 +611,30 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
 .modal-bg { position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;
   display:flex;align-items:flex-end;justify-content:center;
   opacity:0;pointer-events:none;transition:opacity .25s; }
+
+/* ── PWA telepítő banner (2026-07-08) ── */
+.pwaBanner{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 76px);
+  max-width:406px;margin:0 auto;background:var(--bg2);border:1.5px solid var(--border);border-radius:16px;
+  padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 32px rgba(0,0,0,.4);z-index:180;
+  transform:translateY(140%);opacity:0;transition:transform .35s cubic-bezier(.34,1.15,.64,1),opacity .3s;pointer-events:none;}
+.pwaBanner.on{transform:translateY(0);opacity:1;pointer-events:auto;}
+.pwaBanner .pwaClose{position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;
+  background:var(--bg3);border:1.5px solid var(--border);color:var(--muted);font-size:11px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;padding:0;}
+.pwaBanner .pwaIco{width:38px;height:38px;border-radius:11px;background:var(--acc);
+  display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;color:#fff;font-weight:900;}
+.pwaBanner .pwaTxt{flex:1;min-width:0;cursor:pointer;}
+.pwaBanner .pwaTtl{font-size:12.5px;font-weight:800;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pwaBanner .pwaSub{font-size:10.5px;color:var(--muted);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pwaBanner .pwaBtn{background:var(--acc);color:#fff;border:none;border-radius:10px;padding:9px 14px;
+  font-size:11.5px;font-weight:800;cursor:pointer;flex-shrink:0;font-family:inherit;letter-spacing:.02em;}
+.pwaStep{display:flex;align-items:flex-start;gap:10px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.pwaStepNum{width:22px;height:22px;border-radius:50%;background:var(--acc);color:#fff;font-size:11px;
+  font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pwaStepTxt{font-size:12.5px;color:var(--text);line-height:1.5;padding-top:1px;}
+.pwaStepTxt b{color:var(--acc);}
+@media (min-width:900px){.pwaBanner{left:auto;right:24px;bottom:24px;}}
 .modal-bg.on { opacity:1;pointer-events:all; }
 .modal { background:var(--bg2);border-radius:24px 24px 0 0;padding:0;
   width:100%;max-width:430px;max-height:88vh;overflow-y:hidden;
@@ -736,13 +781,13 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
 /* KID OVERLAY */
 .kid-overlay { position:fixed;inset:0;z-index:60;background:var(--bg);
   transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);
-  display:flex;flex-direction:column;max-width:430px;margin:0 auto; }
+  display:flex;flex-direction:column;}
 .kid-overlay.open { transform:translateX(0); }
 
 /* ─── KID DETAIL OVERLAY ─── */
 .kdo-overlay { position:fixed;inset:0;z-index:65;background:var(--bg);
   transform:translateX(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);
-  display:flex;flex-direction:column;max-width:430px;margin:0 auto; }
+  display:flex;flex-direction:column;}
 .kdo-overlay.open { transform:translateX(0); }
 .kdo-header { padding:16px 18px 0;background:var(--hero);border-bottom:1px solid var(--border);flex-shrink:0; }
 .kdo-header-top { display:flex;align-items:center;gap:10px;margin-bottom:14px; }
@@ -911,9 +956,116 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
 @keyframes ripSlideR { from{opacity:0;transform:translateX(-18px);}to{opacity:1;transform:translateX(0);} }
 .rip-anim-l { animation:ripSlideL .22s ease; }
 .rip-anim-r { animation:ripSlideR .22s ease; }
+/* ══════════════════════════════════════════════════════════════
+   BOOTLOADER / nyitó animáció — VÉGLEGES (bootloader_preview_v7,
+   2026-07-08). Session-enként egyszer fut le. Lila gradiens háttér +
+   glow effekt + MONYK wordmark (#6B3FA0) + "FAMILY" alcím.
+   ══════════════════════════════════════════════════════════════ */
+#monykBoot{
+  position:fixed;inset:0;z-index:99999;
+  background:linear-gradient(180deg,#F4EFF9,#ECE1F5);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+#monykBoot.hiding{animation:mbFadeOut .35s ease forwards;}
+@keyframes mbFadeOut{to{opacity:0;visibility:hidden;}}
+
+/* ── App-váltás átmenet (2026-07-08) — Pro ↔ Family ↔ Travel közötti
+   hard-switch kíséri. Family stílushoz illő, kicsit lágyabb/pattanósabb
+   fade+scale, mint a Finance-nél. ── */
+.shell.switch-out{animation:appSwitchOut 240ms cubic-bezier(.4,0,.7,1) forwards;}
+@keyframes appSwitchOut{to{opacity:0;transform:scale(.94) translateY(6px);}}
+.shell.switch-in{animation:appSwitchIn 280ms cubic-bezier(.22,1.1,.3,1) both;}
+@keyframes appSwitchIn{from{opacity:0;transform:scale(.96) translateY(-6px);}to{opacity:1;transform:scale(1) translateY(0);}}
+@media (prefers-reduced-motion: reduce){
+  .shell.switch-out, .shell.switch-in{animation:none;}
+}
+.mb-glow{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 50% 45%, rgba(107,63,160,.18), transparent 60%);
+  opacity:0;animation:mbGlow 1800ms 150ms ease forwards;
+}
+@keyframes mbGlow{0%{opacity:0;}40%{opacity:1;}100%{opacity:.6;}}
+.mb-word{
+  font-family:'Bricolage Grotesque','Arial Black',sans-serif;font-weight:900;
+  font-size:22px;letter-spacing:2.5px;color:#2A1B38;
+  opacity:0;transform:translateY(10px);
+  animation:mbFadeUp 550ms 1150ms ease forwards;
+}
+.mb-word span{color:#6B3FA0;}
+.mb-sub{
+  font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.24em;
+  text-transform:uppercase;color:#8f6fb3;margin-top:8px;
+  opacity:0;transform:translateY(8px);
+  animation:mbFadeUp 550ms 1400ms ease forwards;
+}
+@keyframes mbFadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@media (prefers-reduced-motion: reduce){
+  .mb-glow,.mb-word,.mb-sub{animation:none;}
+  .mb-glow{opacity:.6;}
+  .mb-word,.mb-sub{opacity:1;transform:none;}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VALÓDI DESKTOP LAYOUT — 2026-07-08 (B: felső navigáció)
+   Az alsó tab-nav felül, vízszintes sávvá alakul (nem sidebar),
+   a tartalom teljes szélességű, olvasható közép-oszloppá bővül.
+   Mobilon (≤900px) semmi nem változik.
+   ══════════════════════════════════════════════════════════════ */
+@media (min-width:900px){
+  .shell{
+    max-width:none;
+    margin:0;
+    border-left:none;
+    border-right:none;
+    box-shadow:none;
+    display:flex;
+    flex-direction:column;
+    height:100%;
+  }
+  .swipe-viewport{order:2;flex:1;}
+
+  .bot-nav{
+    order:1;
+    min-height:auto;
+    height:auto;
+    flex-direction:row;
+    justify-content:center;
+    border-top:none;
+    border-bottom:1px solid var(--border);
+    padding:12px 24px;
+    gap:8px;
+  }
+  .bnav{
+    flex-direction:row;
+    align-items:center;
+    gap:9px;
+    padding:10px 20px;
+    border-radius:10px;
+    font-size:12px;
+    text-transform:none;
+    letter-spacing:0;
+    border:1px solid var(--border);
+  }
+  .bnav .ni{font-size:17px}
+  .bnav:hover{color:var(--text);background:rgba(255,255,255,.04)}
+  .bnav.on{background:color-mix(in srgb, var(--acc) 12%, transparent);border-color:var(--acc)}
+  .bnav::after{display:none}
+
+  .swipe-panel{
+    max-width:1040px;
+    margin:0 auto;
+    padding:28px 36px 48px;
+  }
+}
 </style>
 </head>
 <body>
+
+<div id="monykBoot">
+  <div class="mb-glow"></div>
+  <div class="mb-word">MON<span>Y</span>K</div>
+  <div class="mb-sub">FAMILY</div>
+</div>
 <div class="shell">
 
   <!-- HEADER -->
@@ -1012,6 +1164,25 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
       <span class="ni">📊</span><span class="nav-lbl">Riport</span>
     </button>
   </nav>
+</div>
+
+<!-- ── PWA telepítő banner (2026-07-08) ── -->
+<div class="pwaBanner" id="pwaBanner">
+  <button class="pwaClose" id="pwaCloseBtn" onclick="pwaBannerClose()">✕</button>
+  <div class="pwaIco">M</div>
+  <div class="pwaTxt" onclick="openPwaInfoModal()">
+    <div class="pwaTtl" id="pwaBannerTtl">Telepítsd az appot</div>
+    <div class="pwaSub" id="pwaBannerSub">Egy koppintással a kezdőképernyőn</div>
+  </div>
+  <button class="pwaBtn" id="pwaBtn" onclick="pwaBannerAction()">Telepítés</button>
+</div>
+
+<div class="modal-bg" id="pwaInfoModalBg" onclick="if(event.target===this)closePwaInfoModal()">
+  <div class="modal" style="padding:16px;max-width:420px;">
+    <div class="modal-title"><span>📲 App telepítése</span><button class="close-btn" onclick="closePwaInfoModal()">✕</button></div>
+    <div id="pwaInfoBody" style="margin-top:14px;"></div>
+    <div id="pwaInfoFooter" style="margin-top:14px;"></div>
+  </div>
 </div>
 
 <!-- ADD MODAL – 2 lépéses (v76) -->
@@ -1377,13 +1548,18 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
       <div id="accountSettingsBox"></div>
     </div>
 
+    <!-- EGYÉB MONYK APPOK (2026-07-08) ────────────────────────────── -->
+    <div class="so-section">
+      <div class="so-section-lbl">🧭 Egyéb MONYK appok</div>
+      <button class="so-add-kid-btn" onclick="monykSwitchTo('finance')">💰 Pénzügyek megnyitása</button>
+      <button class="so-add-kid-btn" onclick="monykSwitchTo('travel')">✈️ Utazás megnyitása</button>
+    </div>
+
     <!-- 0. CSALÁD VÁLTÁS ──────────────────────────────────── -->
     <div class="so-section">
       <div class="so-section-lbl">👪 Család</div>
       <div id="soFamilyName" style="font-size:13px;color:var(--muted);margin-bottom:8px;"></div>
       <button class="so-add-kid-btn" onclick="closeSettings();openInviteCodeRegenModal()">📨 Meghívókód új eszköznek</button>
-      <button class="so-add-kid-btn" onclick="closeSettings();confirmLeaveFamily()">🔁 Másik családba lépés / kilépés</button>
-      <button class="so-danger-full-btn" id="so-delete-family-btn" onclick="openDeleteFamilyModal()">🗑 Család végleges törlése</button>
     </div>
 
     <!-- 0.3 KÖZÖS KASSZA KAPCSOLÓ (v78) -->
@@ -1490,6 +1666,14 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
     </div>
 
     <button class="so-save-btn" id="so-save-btn" onclick="saveSettings()">✓ Mentés</button>
+
+    <!-- VESZÉLYZÓNA — család kilépés / végleges törlés (elkülönítve, hogy véletlenül ne lehessen rányomni) -->
+    <div class="so-section so-danger-zone">
+      <div class="so-section-lbl so-danger-zone-lbl">⚠️ Veszélyzóna</div>
+      <button class="so-add-kid-btn" style="border-color:rgba(239,68,68,.25);color:#f87171;" onclick="closeSettings();confirmLeaveFamily()">🔁 Másik családba lépés / kilépés</button>
+      <button class="so-danger-full-btn" id="so-delete-family-btn" onclick="openDeleteFamilyModal()">🗑 Család végleges törlése</button>
+    </div>
+
     <div style="height:20px;"></div>
   </div>
 </div>
@@ -1718,6 +1902,26 @@ html,body { width:100%;height:100%;overflow:hidden;background:var(--bg);color:va
       </div>
     </div>
 
+    <!-- v84: opcionális fizetési adatok az "Utalás most" gombhoz — nem kötelező,
+         csak akkor jelenik meg fizetési opcióként, ha ki van töltve. A MONYK
+         sosem érinti a pénzt, ezek csak QR/link-generáláshoz kellenek. -->
+    <div class="field" style="margin-top:10px;">
+      <div class="field-lbl">🏦 IBAN (opcionális, banki QR-hez)</div>
+      <input class="finput" id="kem-iban" placeholder="DE00 0000 0000 0000 0000 00">
+    </div>
+    <div class="field" style="margin-top:10px;">
+      <div class="field-lbl">💙 PayPal felhasználónév (opcionális)</div>
+      <input class="finput" id="kem-paypal" placeholder="pl. nevem vagy nevem@email.hu">
+    </div>
+    <div class="field" style="margin-top:10px;">
+      <div class="field-lbl">💜 Revolut felhasználónév (opcionális)</div>
+      <input class="finput" id="kem-revolut" placeholder="pl. nevem (revolut.me/nevem)">
+    </div>
+    <div class="field" style="margin-top:10px;">
+      <div class="field-lbl">🟢 Wise felhasználónév (opcionális)</div>
+      <input class="finput" id="kem-wise" placeholder="pl. nevem (wise.com/pay/r/nevem)">
+    </div>
+
     <button class="save-btn" id="kem-save-btn" onclick="saveKidEdit()">✓ Mentés</button>
   </div>
 </div>
@@ -1782,11 +1986,23 @@ let editItemId = -1;  // -1 = új tétel, >=0 = szerkesztés
 
 // ════════════════════════════════════════════════
 // ── Időzóna-biztos dátum parser ──
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function parseLocalDate(s) {
   if (!s) return new Date(NaN);
   const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
   return new Date(s);
+}
+// parseLocalDate ellenpárja: helyi (nem UTC) dátum YYYY-MM-DD stringgé alakítása.
+// A korábbi X.toISOString().slice(0,10) minta UTC-re konvertált, ami DE/AT/CH
+// (UTC+1/+2) időzónában éjfél után egy nappal korábbi dátumot adott vissza.
+// Lásd changelog 2026-07-07.
+function localYMD(d) {
+  d = d || new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
 // ── SETTINGS BRIDGE (AndroidBridge + localStorage)
@@ -2035,6 +2251,14 @@ const TRANSLATIONS = {
     pinCancelBtn:'Mégse', pinErrNoMatch:'A két PIN nem egyezik — kezdd újra.', pinErrWrong:'Helytelen PIN kód.',
     pinSetOkToast:'🔒 PIN kód beállítva', pinOffOkToast:'🔓 PIN kód kikapcsolva',
     bioOffToast:'Biometria kikapcsolva', bioOnToast:'👆 Biometria bekapcsolva', bioUnavailToast:'⚠️ Biometria nem elérhető ezen az eszközön',
+    // Fiók-szekció (Google-fiók összekapcsolás)
+    accountLinkInfo:'Kösd össze a fiókodat egy Google-fiókkal, hogy új telefonon is visszakapd a hozzáférésed meghívókód nélkül.',
+    accountLinkBtn:'🔗 Google-fiók összekapcsolása', accountUnlinkBtn:'Leválasztás',
+    accountUnlinkConfirm:'Biztosan leválasztod a Google-fiókodat? A családtagságod megmarad, csak a név/fotó tűnik el.',
+    accountLinkedFallback:'Összekapcsolva', accountLinkedToast:'Google-fiók összekapcsolva: %s',
+    googleAuthGenericError:'Hiba történt: ', googleAuthAlreadyLinked:'Ez a Google-fiók már más MONYK-fiókhoz van társítva ebben az appban.',
+    googleAuthEmailInUse:'Ez az email-cím már használatban van egy másik fiókhoz.', googleAuthCancelled:'Megszakítva.',
+    googleAuthNetworkError:'Hálózati hiba, próbáld újra.', googleAuthReauth:'Ehhez újra be kell jelentkezned, próbáld meg még egyszer.',
   },
   en: {
     familia:'FAMILY', ki:'Exit', haviOssz:'Monthly total', zsebpenz:'Allowance',
@@ -2234,6 +2458,14 @@ const TRANSLATIONS = {
     pinCancelBtn:'Cancel', pinErrNoMatch:'The two PINs don\\u2019t match — try again.', pinErrWrong:'Wrong PIN code.',
     pinSetOkToast:'🔒 PIN code set', pinOffOkToast:'🔓 PIN code disabled',
     bioOffToast:'Biometrics disabled', bioOnToast:'👆 Biometrics enabled', bioUnavailToast:'⚠️ Biometrics not available on this device',
+    // Account section (Google account linking)
+    accountLinkInfo:'Link your account to a Google account so you can regain access on a new phone without an invite code.',
+    accountLinkBtn:'🔗 Link Google account', accountUnlinkBtn:'Unlink',
+    accountUnlinkConfirm:'Are you sure you want to unlink your Google account? Your family membership stays, only the name/photo disappears.',
+    accountLinkedFallback:'Linked', accountLinkedToast:'Google account linked: %s',
+    googleAuthGenericError:'An error occurred: ', googleAuthAlreadyLinked:'This Google account is already linked to another MONYK account in this app.',
+    googleAuthEmailInUse:'This email address is already in use by another account.', googleAuthCancelled:'Cancelled.',
+    googleAuthNetworkError:'Network error, please try again.', googleAuthReauth:'You need to sign in again to do this — please try once more.',
   },
   de: {
     familia:'FAMILIE', ki:'Beenden', haviOssz:'Monatssumme', zsebpenz:'Taschengeld',
@@ -2435,6 +2667,14 @@ const TRANSLATIONS = {
     pinCancelBtn:'Abbrechen', pinErrNoMatch:'Die beiden PINs stimmen nicht überein — versuch es erneut.', pinErrWrong:'Falscher PIN-Code.',
     pinSetOkToast:'🔒 PIN-Code festgelegt', pinOffOkToast:'🔓 PIN-Code deaktiviert',
     bioOffToast:'Biometrie deaktiviert', bioOnToast:'👆 Biometrie aktiviert', bioUnavailToast:'⚠️ Biometrie auf diesem Gerät nicht verfügbar',
+    // Konto-Bereich (Google-Konto-Verknüpfung)
+    accountLinkInfo:'Verknüpfe dein Konto mit einem Google-Konto, damit du auf einem neuen Handy ohne Einladungscode wieder Zugriff erhältst.',
+    accountLinkBtn:'🔗 Google-Konto verknüpfen', accountUnlinkBtn:'Trennen',
+    accountUnlinkConfirm:'Möchtest du dein Google-Konto wirklich trennen? Deine Familienmitgliedschaft bleibt bestehen, nur Name/Foto verschwinden.',
+    accountLinkedFallback:'Verknüpft', accountLinkedToast:'Google-Konto verknüpft: %s',
+    googleAuthGenericError:'Ein Fehler ist aufgetreten: ', googleAuthAlreadyLinked:'Dieses Google-Konto ist bereits mit einem anderen MONYK-Konto in dieser App verknüpft.',
+    googleAuthEmailInUse:'Diese E-Mail-Adresse wird bereits von einem anderen Konto verwendet.', googleAuthCancelled:'Abgebrochen.',
+    googleAuthNetworkError:'Netzwerkfehler, bitte versuche es erneut.', googleAuthReauth:'Dazu musst du dich erneut anmelden — bitte versuche es noch einmal.',
   },
 };
 
@@ -2869,6 +3109,7 @@ MonykGoogleAuth.init({
   firebase: firebase,
   fbAuth: fbAuth,
   showToast: (typeof toast === 'function') ? toast : undefined,
+  t: t,
   onLinked: (profile) => {
     googleLinkedProfile = profile;
     if (currentFamilyId && currentUid) {
@@ -2877,7 +3118,7 @@ MonykGoogleAuth.init({
         .catch(e => console.warn('[MONYK Family] googleName mentése hiba:', e));
     }
     if (typeof renderAccountSettingsUI === 'function') renderAccountSettingsUI();
-    if (typeof toast === 'function') toast('Google-fiók összekapcsolva: ' + (profile.displayName || profile.email || ''));
+    if (typeof toast === 'function') toast(t('accountLinkedToast', profile.displayName || profile.email || ''));
   },
   onSignedIn: (profile) => {
     // Ez akkor fut le, ha valaki egy vadonatúj telepítésen a korábban
@@ -2903,7 +3144,7 @@ function linkGoogleAccount() {
 }
 
 async function unlinkGoogleAccount() {
-  const ok = window.confirm('Biztosan leválasztod a Google-fiókodat? A családtagságod megmarad, csak a név/fotó tűnik el.');
+  const ok = window.confirm(t('accountUnlinkConfirm'));
   if (!ok) return;
   const success = await MonykGoogleAuth.unlink();
   if (success) {
@@ -2923,11 +3164,12 @@ async function unlinkGoogleAccount() {
 function renderAccountSettingsUI() {
   const box = document.getElementById('accountSettingsBox');
   if (!box) return;
+  if (typeof MonykGoogleAuth === 'undefined') { console.warn('[MONYK Family] MonykGoogleAuth nincs betöltve (googleAuth.js hiányzik?) — fiók szekció kihagyva.'); return; }
   const profile = MonykGoogleAuth.getLinkedProfile();
   if (!profile) {
     box.innerHTML =
-      '<div class="so-row-info" style="margin-bottom:8px;">Kösd össze a fiókodat egy Google-fiókkal, hogy új telefonon is visszakapd a hozzáférésed meghívókód nélkül.</div>' +
-      '<button class="so-add-kid-btn" onclick="linkGoogleAccount()">🔗 Google-fiók összekapcsolása</button>';
+      '<div class="so-row-info" style="margin-bottom:8px;">' + t('accountLinkInfo') + '</div>' +
+      '<button class="so-add-kid-btn" onclick="linkGoogleAccount()">' + t('accountLinkBtn') + '</button>';
     return;
   }
   const avatar = profile.photoUrl
@@ -2935,8 +3177,8 @@ function renderAccountSettingsUI() {
     : '';
   box.innerHTML =
     '<div class="so-row-info" style="margin-bottom:8px;display:flex;align-items:center;">' + avatar +
-    '<span>' + (profile.displayName || profile.email || 'Összekapcsolva') + '</span></div>' +
-    '<button class="so-add-kid-btn" onclick="unlinkGoogleAccount()">Leválasztás</button>';
+    '<span>' + (profile.displayName || profile.email || t('accountLinkedFallback')) + '</span></div>' +
+    '<button class="so-add-kid-btn" onclick="unlinkGoogleAccount()">' + t('accountUnlinkBtn') + '</button>';
 }
 
 let currentUid = null;
@@ -2955,7 +3197,15 @@ function memberDisplayName(uid) {
   if (!uid) return '–';
   if (uid === currentUid) return t('enMagam');
   const mm = familyMembers.find(x => x.uid === uid);
-  return mm ? mm.deviceName : 'Szülő';
+  return mm ? (mm.googleName || mm.deviceName) : 'Szülő';
+}
+
+// Egy uid Google-profilképe, ha van linkelve (2026-07-07) — a "ki fizette"
+// chip-sorban és bárhol máshol, ahol a memberDisplayName mellett ikon is kell
+function memberPhotoUrl(uid) {
+  if (!uid) return null;
+  const mm = familyMembers.find(x => x.uid === uid);
+  return mm ? mm.photoUrl : null;
 }
 
 // ── ÚJ MEGHÍVÓKÓD GENERÁLÁSA MEGLÉVŐ CSALÁDHOZ (2026-07-06) ──
@@ -3260,13 +3510,13 @@ function openKidPairingFlow(localKidId) {
   el.id = 'kidPairing';
   el.className = 'kp-overlay';
   el.innerHTML = `
-    <h3>📱 ${g.nev} eszközének párosítása</h3>
-    <p>A generált kóddal ${g.nev} a saját telefonján, a MONYK Kids appban rögzítheti majd a
+    <h3>📱 ${escapeHtml(g.nev)} eszközének párosítása</h3>
+    <p>A generált kóddal ${escapeHtml(g.nev)} a saját telefonján, a MONYK Kids appban rögzítheti majd a
       saját bevételeit/kiadásait. Te (és a másik szülő) mindig látjátok, amit rögzít — jóváhagyás
       nem szükséges, ez egy önálló, felügyelt napló.</p>
     <label class="kp-consent">
       <input type="checkbox" id="kpConsentChk" onchange="document.getElementById('kpGenBtn').disabled=!this.checked">
-      <span>Szülőként hozzájárulok, hogy <b>${g.nev}</b> saját eszközön, saját Anonymous Auth
+      <span>Szülőként hozzájárulok, hogy <b>${escapeHtml(g.nev)}</b> saját eszközön, saját Anonymous Auth
         azonosítóval hozzáférjen a saját bejegyzéseihez a MONYK Family Firestore-adatbázisában.</span>
     </label>
     <button class="kp-btn primary" id="kpGenBtn" disabled onclick="confirmKidPairing(${localKidId})">Kód generálása</button>
@@ -3309,7 +3559,7 @@ function showKidInviteCodeOverlay(g, code) {
   el.className = 'kp-overlay';
   el.innerHTML = `
     <h3>✅ Kód elkészült</h3>
-    <p>Nyisd meg a MONYK Kids appot ${g.nev} telefonján, és olvassátok be a QR-kódot, vagy írjátok
+    <p>Nyisd meg a MONYK Kids appot ${escapeHtml(g.nev)} telefonján, és olvassátok be a QR-kódot, vagy írjátok
       be kézzel a kódot. A kód 48 óráig érvényes.</p>
     <div id="kidQrBox" style="display:inline-block;padding:12px;background:#fff;border-radius:12px;margin-bottom:14px;"></div>
     <div style="font-size:32px;font-weight:900;letter-spacing:4px;margin-bottom:16px;">${code}</div>
@@ -3386,7 +3636,7 @@ function attachFamilyListeners(familyId) {
     const newMembers = [];
     snap.forEach(doc => {
       const d = doc.data();
-      newMembers.push({ uid: doc.id, deviceName: d.deviceName || 'Szülő' });
+      newMembers.push({ uid: doc.id, deviceName: d.deviceName || 'Szülő', googleName: d.googleName || null, photoUrl: d.photoUrl || null });
     });
     familyMembers.splice(0, familyMembers.length, ...newMembers);
     if (typeof renderPaidByChips === 'function') renderPaidByChips();
@@ -3424,7 +3674,11 @@ function attachFamilyListeners(familyId) {
         paid: !!d.paid,
         paidAt: d.paidAt || null,
         paidMonth: d.paidMonth || null,
-        kidUid: d.kidUid || null // v83: gyerek saját (MONYK Kids appos) Anonymous Auth uid-ja, ha párosítva van
+        kidUid: d.kidUid || null, // v83: gyerek saját (MONYK Kids appos) Anonymous Auth uid-ja, ha párosítva van
+        iban: d.iban || '', // v84: opcionális IBAN a "Utalás most" GiroCode-gombhoz
+        paypal: d.paypal || '', // v84: opcionális PayPal-felhasználónév/e-mail a "Utalás most" gombhoz
+        revolut: d.revolut || '', // 2026-07-07: opcionális Revolut felhasználónév a "Utalás most" gombhoz
+        wise: d.wise || '' // 2026-07-07: opcionális Wise felhasználónév a "Utalás most" gombhoz
       });
     });
     kids.splice(0, kids.length, ...newKids);
@@ -3447,7 +3701,10 @@ function attachFamilyListeners(familyId) {
         kat: d.kategoria || '',
         // v77: a tétel esedékesség-dátuma mostantól a mentett `datum` mezőből jön,
         // nem a szerver-timestampből (az korábban mindig a mentés pillanatát adta vissza).
-        datum: d.datum || (d.timestamp && d.timestamp.toDate ? d.timestamp.toDate().toISOString().slice(0,10) : new Date().toISOString().slice(0,10)),
+        // v78: localYMD() a korábbi X.toISOString().slice(0,10) helyett — az utóbbi UTC-re
+        // konvertált, ami DE/AT/CH (UTC+1/+2) időzónában éjfél után egy nappal korábbi
+        // dátumot adott vissza. Lásd changelog 2026-07-07.
+        datum: d.datum || (d.timestamp && d.timestamp.toDate ? localYMD(d.timestamp.toDate()) : localYMD()),
         paid: !!d.paid,
         paidAt: d.paidAt || null,
         ikon: d.ikon || '📝',
@@ -3626,7 +3883,7 @@ function swipeItemHtml(item, isPaidView) {
     <div class="item-card-top">
       <div class="si-icon">${item.ikon}</div>
       <div class="si-info">
-        <div class="si-name">${item.nev}${item.rec?'<span class="rec-badge">🔄</span>':''}</div>
+        <div class="si-name">${escapeHtml(item.nev)}${item.rec?'<span class="rec-badge">🔄</span>':''}</div>
         <div class="si-sub">${g?.ikon||''} ${g?.nev||'?'} · ${item.kat}</div>
         ${statusBadge}
         ${remLabel}
@@ -3758,7 +4015,7 @@ function renderKids() {
       <div class="zp-kid-row">
         <div class="zp-kid-av">${g.ikon}</div>
         <div class="zp-kid-info">
-          <div class="zp-kid-name" style="color:${g.color};">${g.nev}</div>
+          <div class="zp-kid-name" style="color:${g.color};">${escapeHtml(g.nev)}</div>
           <div class="zp-kid-sub">${g.zsebpenz.toLocaleString('hu')} ${cur}/${t("honapjaHo").replace("/","")} · ${t('zpKeret')} ${g.budget.toLocaleString('hu')} ${cur}</div>
           <div class="zp-kid-prog">
             <div class="zp-kid-prog-track">
@@ -3788,7 +4045,7 @@ function renderKids() {
     <div class="zp-hist-item">
       <div class="zp-hist-ico">${h.ikon}</div>
       <div class="zp-hist-info">
-        <div class="zp-hist-lbl">${h.nev} – ${h.month}</div>
+        <div class="zp-hist-lbl">${escapeHtml(h.nev)} – ${h.month}</div>
         <div class="zp-hist-sub">${h.datum}</div>
       </div>
       <div class="zp-hist-amt" style="color:var(--green);">${h.osszeg.toLocaleString('hu')} ${cur}</div>
@@ -3808,7 +4065,7 @@ function renderKids() {
       <div class="kcb-top">
         <div class="kcb-av">${g.ikon}</div>
         <div class="kcb-info">
-          <div class="kcb-name">${g.nev}</div>
+          <div class="kcb-name">${escapeHtml(g.nev)}</div>
           <div class="kcb-status">
             <span class="st-pill ${g.paid ? 'st-ok' : 'st-pnd'}">${g.paid ? t('zsebKesz') : t('zsebPending')}</span>
             <span class="st-pill st-pnd">${t('tetelPill', allGi.length)}</span>
@@ -3842,10 +4099,16 @@ function renderKids() {
           ${t('ujKiadasBtn')}
         </button>
       </div>
+      ${(g.iban || g.paypal || g.revolut || g.wise) ? `
+      <div class="kcb-actions" style="margin-top:8px;">
+        <button class="kcb-add-btn" style="width:100%;" onclick="event.stopPropagation();openPaymentModal(${g.id})">
+          💳 Utalás most
+        </button>
+      </div>` : ''}
     </div>`;
   }).join('');
 
-  document.getElementById('kidList').innerHTML = kidCardsHtml;
+  document.getElementById('kidList').innerHTML = widgetHtml + kidCardsHtml;
 }
 
 // Zsebpénz előzmények (session szintű, localStorage-ba is megy)
@@ -3964,6 +4227,27 @@ function payoutIndividual() {
   const cur = getCurrency();
   toast(`💸 ${g.nev} · ${g.zsebpenz.toLocaleString('hu')} ${cur} kiosztva`);
   saveLS(); renderAll();
+}
+
+// v84: "Utalás most" — a MonykPaymentQr közös modul modalját nyitja meg a
+// gyerekhez rögzített IBAN/PayPal adatokkal. A MONYK ezen a ponton sem
+// érinti a pénzt — csak QR-t/linket generál, a visszaigazolás a meglévő
+// togglePaid() kézi gombbal történik, ahogy eddig is.
+function openPaymentModal(id) {
+  const g = kids.find(k => k.id === id); if (!g) return;
+  if (!window.MonykPaymentQr) { toast('⚠️ Fizetési modul nem töltődött be'); return; }
+  const cur = getCurrency();
+  MonykPaymentQr.showPaymentModal({
+    iban: g.iban,
+    ibanName: g.nev,
+    paypalUser: g.paypal,
+    revolutUser: g.revolut,
+    wiseUser: g.wise,
+    amount: g.zsebpenz,
+    currency: cur,
+    reference: `Zsebpenz ${g.nev} ${currentMonthKey()}`,
+    title: `${g.ikon} ${g.nev} — utalás`
+  });
 }
 
 function togglePaid(id) {
@@ -4215,7 +4499,7 @@ function renderRiportFull(animDir) {
       }).join('')}
     </div>
     <div class="rip-bar-legend">
-      ${kids.map(g=>`<div class="rip-bar-leg-item"><div class="rip-bar-leg-dot" style="background:${g.color};"></div>${g.nev}</div>`).join('')}
+      ${kids.map(g=>`<div class="rip-bar-leg-item"><div class="rip-bar-leg-dot" style="background:${g.color};"></div>${escapeHtml(g.nev)}</div>`).join('')}
     </div>`;
 
   // Progress sávok gyerekenként
@@ -4225,7 +4509,7 @@ function renderRiportFull(animDir) {
     const col = pct>85?'var(--red)':pct>60?'var(--warn)':g.color;
     return `<div class="rip-prog-row">
       <div class="rip-prog-header">
-        <span class="rip-prog-name">${g.ikon} ${g.nev}</span>
+        <span class="rip-prog-name">${g.ikon} ${escapeHtml(g.nev)}</span>
         <span class="rip-prog-val" style="color:${col};">${val.toLocaleString('hu')} / ${g.budget.toLocaleString('hu')} ${cur}</span>
       </div>
       <div class="rip-prog-track"><div class="rip-prog-fill" style="width:${pct}%;background:${col};"></div></div>
@@ -4305,7 +4589,7 @@ function renderRiportFull(animDir) {
           const spent = catMap[n] || 0;
           const pct = Math.min(Math.round(spent / b * 100), 100);
           const over = spent > b;
-          const col = pct > 100 ? 'var(--red)' : pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--warn)' : (CAT_COLS[n] || '#a78bfa');
+          const col = pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--warn)' : (CAT_COLS[n] || '#a78bfa');
           return `<div class="budget-bar" style="margin-top:12px;">
             <div class="budget-bar-lbl">
               <span>${catLabel(n)}${over ? ' ⚠️' : ''}</span>
@@ -4402,7 +4686,7 @@ async function confirmDelay(days) {
   const item = items.find(x=>x.id===confirmItemId); if(!item) return;
   const newDate = new Date(item.datum);
   newDate.setDate(newDate.getDate() + days);
-  const newDatum = newDate.toISOString().slice(0,10);
+  const newDatum = localYMD(newDate);
   const newReminder = days<=1 ? 'same' : days<=3 ? '1d' : '3d';
   try {
     await db.collection('families').doc(currentFamilyId).collection('entries').doc(item.firestoreId).update({ datum: newDatum, reminder: newReminder });
@@ -4436,7 +4720,7 @@ function doPayItem(id) {
   const card = document.querySelector(`.item-card[data-id="${id}"]`);
   if(card) card.animate([{opacity:1,transform:'translateX(0)'},{opacity:0,transform:'translateX(80px)'}],{duration:240,fill:'forwards'});
   setTimeout(async ()=>{
-    const paidAt = new Date().toISOString().slice(0,10);
+    const paidAt = localYMD();
     try {
       await db.collection('families').doc(currentFamilyId).collection('entries').doc(i.firestoreId).update({ paid: true, paidAt });
     } catch(e) {
@@ -4666,10 +4950,15 @@ function renderPaidByChips(selectedUid) {
   }
   field.style.display = 'block';
   const sel = selectedUid || currentUid;
-  row.innerHTML = familyMembers.map(mm => `
+  row.innerHTML = familyMembers.map(mm => {
+    const icon = mm.photoUrl
+      ? `<img src="${mm.photoUrl}" class="sc-icon" style="width:16px;height:16px;border-radius:50%;object-fit:cover;vertical-align:middle;">`
+      : `<span class="sc-icon">${mm.uid===currentUid?'📱':'👤'}</span>`;
+    return `
     <div class="szamla-chip${mm.uid===sel?' on':''}" data-uid="${mm.uid}" onclick="selPaidBy(this)">
-      <span class="sc-icon">${mm.uid===currentUid?'📱':'👤'}</span>${memberDisplayName(mm.uid)}
-    </div>`).join('');
+      ${icon}${memberDisplayName(mm.uid)}
+    </div>`;
+  }).join('');
 }
 function selKonyveles(mode) {
   document.getElementById('kb-auto').classList.toggle('on', mode==='auto');
@@ -4945,7 +5234,7 @@ function openKdo(id) {
   document.getElementById('kdo-hero').innerHTML = `
     <div class="kdo-av">${g.ikon}</div>
     <div class="kdo-info">
-      <div class="kdo-name" style="color:${g.color};">${g.nev}</div>
+      <div class="kdo-name" style="color:${g.color};">${escapeHtml(g.nev)}</div>
       <div class="kdo-sub">🏫 ${(g.profil&&g.profil.iskola)||g.iskola||''} · ${(g.profil&&g.profil.osztaly)||g.osztaly||''}</div>
       <div style="margin-top:6px;">
         <div class="budget-bar-track" style="height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;width:140px;">
@@ -5017,7 +5306,7 @@ function renderKdoKiadasok(g) {
         <div class="item-card-top">
           <div class="si-icon">${item.ikon}</div>
           <div class="si-info">
-            <div class="si-name">${item.nev}${item.rec?'<span class="rec-badge">🔄</span>':''}</div>
+            <div class="si-name">${escapeHtml(item.nev)}${item.rec?'<span class="rec-badge">🔄</span>':''}</div>
             <div class="si-sub">${item.kat}</div>
             ${item.reminder?`<div class="rem-badge">🔔 ${remText(item.reminder)}</div>`:''}
             ${payBadges}
@@ -5093,14 +5382,14 @@ function renderKdoProfil(g) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
         <div class="po-field">
           <div class="po-field-lbl">${t('nev')}</div>
-          <input class="po-input" value="${g.nev}" oninput="kids.find(k=>k.id===${g.id}).nev=this.value">
+          <input class="po-input" value="${escapeHtml(g.nev)}" oninput="kids.find(k=>k.id===${g.id}).nev=this.value">
         </div>
         <div class="po-field">
           <div class="po-field-lbl">${t('osztalyLbl')}</div>
-          <input class="po-input" id="kdo-osztaly" value="${p.osztaly}" oninput="updateKdoOsztaly(${g.id},this.value)">
+          <input class="po-input" id="kdo-osztaly" value="${escapeHtml(p.osztaly)}" oninput="updateKdoOsztaly(${g.id},this.value)">
         </div>
       </div>
-      ${p.allergiak?`<div class="po-field po-warn-field"><div class="po-field-lbl">${t('allergiak')}</div><div style="font-size:13px;font-weight:700;color:#f87171;">${p.allergiak}</div></div>`:''}
+      ${p.allergiak?`<div class="po-field po-warn-field"><div class="po-field-lbl">${t('allergiak')}</div><div style="font-size:13px;font-weight:700;color:#f87171;">${escapeHtml(p.allergiak)}</div></div>`:''}
     </div>
 
     <div class="po-section">
@@ -5109,13 +5398,13 @@ function renderKdoProfil(g) {
         <div class="elfo-card" onclick="openElfo(${g.id},${e.id})">
           <div class="elfo-card-ico">${e.ikon}</div>
           <div class="elfo-card-info">
-            <div class="elfo-card-name">${e.nev}</div>
+            <div class="elfo-card-name">${escapeHtml(e.nev)}</div>
             <div class="elfo-card-sub">
               <span>📅 ${e.nap}.</span>
               <span>${fizStr(e)}</span>
-              <span>🏦 ${e.szamla}</span>
+              <span>🏦 ${escapeHtml(e.szamla)}</span>
               ${e.konyveles==='auto'?`<span>${t('autoKonyveles')}</span>`:`<span>${t('manualisKonyveles')}</span>`}
-              ${e.megjegyzes?`<span>📝 ${e.megjegyzes}</span>`:''}
+              ${e.megjegyzes?`<span>📝 ${escapeHtml(e.megjegyzes)}</span>`:''}
             </div>
           </div>
           <div class="elfo-card-amt">
@@ -5268,7 +5557,7 @@ function openElfo(kidId, itemId) {
 
   // Egyszeri dátum
   const egyDat = document.getElementById('elfo-egyszeri-datum');
-  if(egyDat) egyDat.value = e?.egyszeriDatum || new Date().toISOString().slice(0,10);
+  if(egyDat) egyDat.value = e?.egyszeriDatum || localYMD();
 
   elfoSelIkon      = e?.ikon      || '🎯';
   elfoSelFizmod    = e?.fizmod    || defaultKonyveles === 'auto' ? 'keszpenz' : 'keszpenz';
@@ -5362,7 +5651,7 @@ function elfoBuildPayload(e, kid, datum, extra) {
 function elfoDocPlan(e, now) {
   const y = now.getFullYear(), m = now.getMonth();
   if (e.tipus === 'egyszeri') {
-    return { docId: 'elfo_' + e.id, datum: e.egyszeriDatum || now.toISOString().slice(0,10), extra: { egyszeri: true } };
+    return { docId: 'elfo_' + e.id, datum: e.egyszeriDatum || localYMD(now), extra: { egyszeri: true } };
   }
   let startY = y, startM = m;
   if (e.kezdo === 'kovetkezo') {
@@ -5451,7 +5740,7 @@ function saveElfo() {
   const tipus      = elfoSelTipus;
   const kezdo      = elfoSelKezdo;
   const kezdoEgyedi = document.getElementById('elfo-kezdo-egyedi-input')?.value || '';
-  const egyszeriDatum = document.getElementById('elfo-egyszeri-datum')?.value || new Date().toISOString().slice(0,10);
+  const egyszeriDatum = document.getElementById('elfo-egyszeri-datum')?.value || localYMD();
 
   const rec = {
     id: elfoItemId === -1 ? _elfoNextId++ : elfoItemId,
@@ -5527,9 +5816,9 @@ function openProfile(id) {
   document.getElementById('po-name').textContent = g.nev;
   document.getElementById('po-name').style.color = g.color;
   document.getElementById('po-pills').innerHTML = [
-    p.osztaly ? `<span class="po-pill" style="border-color:${g.color}33;color:${g.color};">🏫 ${p.osztaly}</span>` : '',
+    p.osztaly ? `<span class="po-pill" style="border-color:${g.color}33;color:${g.color};">🏫 ${escapeHtml(p.osztaly)}</span>` : '',
     ...p.szakkors.map(s=>`<span class="po-pill" style="border-color:rgba(255,255,255,.15);color:var(--muted);">⭐ ${s}</span>`),
-    p.allergiak ? `<span class="po-pill" style="border-color:rgba(239,68,68,.3);color:#f87171;">⚠️ ${p.allergiak}</span>` : '',
+    p.allergiak ? `<span class="po-pill" style="border-color:rgba(239,68,68,.3);color:#f87171;">⚠️ ${escapeHtml(p.allergiak)}</span>` : '',
   ].join('');
 
   document.getElementById('po-body').innerHTML = `
@@ -5548,7 +5837,7 @@ function openProfile(id) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
         <div class="po-field">
           <div class="po-field-lbl">${t('osztalyLbl')}</div>
-          <input class="po-input" id="po-osztaly" value="${p.osztaly}" placeholder="pl. 5.b">
+          <input class="po-input" id="po-osztaly" value="${escapeHtml(p.osztaly)}" placeholder="pl. 5.b">
         </div>
         <div class="po-field" style="cursor:pointer;" onclick="callTel('${ia.tel}')">
           <div class="po-field-lbl">📞 Telefon</div>
@@ -5633,7 +5922,7 @@ function openProfile(id) {
       <div class="po-section-lbl">${t('egeszsegLbl')}</div>
       <div class="po-field po-warn-field">
         <div class="po-field-lbl">${t('egeszsegLbl')}</div>
-        <textarea class="po-input" id="po-allergiak" rows="3" placeholder="${t('allergPh')}">${p.allergiak}</textarea>
+        <textarea class="po-input" id="po-allergiak" rows="3" placeholder="${t('allergPh')}">${escapeHtml(p.allergiak)}</textarea>
       </div>
     </div>
 
@@ -5995,6 +6284,10 @@ function openKidEdit(id) {
   document.getElementById('kem-nev').value = g.nev;
   document.getElementById('kem-zsebpenz').value = g.zsebpenz;
   document.getElementById('kem-budget').value = g.budget;
+  document.getElementById('kem-iban').value = g.iban || '';
+  document.getElementById('kem-paypal').value = g.paypal || '';
+  document.getElementById('kem-revolut').value = g.revolut || '';
+  document.getElementById('kem-wise').value = g.wise || '';
   // Avatar
   document.querySelectorAll('.kem-av-btn').forEach(b=>b.classList.toggle('on', b.textContent.trim()===g.ikon));
   // Color swatches
@@ -6026,11 +6319,15 @@ function saveKidEdit() {
   const nev = document.getElementById('kem-nev').value.trim();
   const zsebpenz = parseInt(document.getElementById('kem-zsebpenz').value)||0;
   const budget = parseInt(document.getElementById('kem-budget').value)||0;
+  const iban = (window.MonykPaymentQr ? MonykPaymentQr.sanitizeIban(document.getElementById('kem-iban').value) : document.getElementById('kem-iban').value.trim());
+  const paypal = document.getElementById('kem-paypal').value.trim();
+  const revolut = document.getElementById('kem-revolut').value.trim();
+  const wise = document.getElementById('kem-wise').value.trim();
   if(!nev) { toast('⚠️ Adj meg egy nevet!'); return; }
   const ikon = kemSelAv || g.ikon;
   const color = kemSelColor || g.color;
   db.collection('families').doc(currentFamilyId).collection('kids').doc(g.firestoreId).update({
-    nev, ikon, color, budget,
+    nev, ikon, color, budget, iban, paypal, revolut, wise,
     zsebpenz: { osszeg: zsebpenz }
   }).then(() => {
     toast(`✅ ${nev} adatai mentve!`);
@@ -6163,7 +6460,7 @@ function openSettings() {
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="so-kid-av">${g.ikon}</div>
         <div class="so-kid-info">
-          <div class="so-kid-name" style="color:${g.color};">${g.nev}</div>
+          <div class="so-kid-name" style="color:${g.color};">${escapeHtml(g.nev)}</div>
           <div class="so-kid-sub">${t('zsebpenz')}: ${g.zsebpenz.toLocaleString()} ${cur}/${t("honapjaHo").replace("/","")} · ${g.budget.toLocaleString()} ${cur}</div>
         </div>
         <button class="so-danger-btn" onclick="closeSettings();openKdo(${g.id})">${t('szerkeszt')}</button>
@@ -6434,10 +6731,13 @@ function exportFamilyData() {
       exportedAt: new Date().toISOString(),
       familyId: currentFamilyId || null,
       sharedKasse: (typeof currentFamilySharedKasse !== 'undefined') ? currentFamilySharedKasse : null,
+      splitRatio: (typeof currentFamilySplitRatio !== 'undefined') ? currentFamilySplitRatio : null,
+      categoryBudgets: (typeof currentCategoryBudgets !== 'undefined') ? currentCategoryBudgets : {},
       members: familyMembers,
       kids: kids,
       entries: items,
-      settlements: (typeof familySettlements !== 'undefined') ? familySettlements : []
+      settlements: (typeof familySettlements !== 'undefined') ? familySettlements : [],
+      shoppingList: (typeof shoppingList !== 'undefined') ? shoppingList : []
     };
     const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
@@ -6524,6 +6824,114 @@ initFirebaseAuth().then(() => {
   }
 });
 
+// ── PWA telepítő banner logika (2026-07-08) ──
+const PWA_PREF_KEY='monyk_family_pwaBannerPref';
+let pwaDeferredPrompt=null;
+
+function pwaIsStandalone(){
+  try{
+    return window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone===true
+      || document.referrer.indexOf('android-app://')===0;
+  }catch(e){ return false; }
+}
+function pwaIsIOS(){
+  try{ return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }catch(e){ return false; }
+}
+function pwaGetPref(){ try{ return localStorage.getItem(PWA_PREF_KEY); }catch(e){ return null; } }
+function pwaSetPref(v){ try{ localStorage.setItem(PWA_PREF_KEY,v); }catch(e){ console.warn('[MONYK]', e); } }
+
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault();
+  pwaDeferredPrompt=e;
+  pwaUpdateBannerContent();
+  pwaMaybeAutoShow();
+});
+window.addEventListener('appinstalled',()=>{
+  pwaDeferredPrompt=null;
+  pwaHideBanner();
+  document.getElementById('pwaInfoModalBg')?.classList.remove('on');
+});
+
+function pwaUpdateBannerContent(){
+  const ttl=document.getElementById('pwaBannerTtl'), sub=document.getElementById('pwaBannerSub'), btn=document.getElementById('pwaBtn');
+  if(!ttl||!sub||!btn) return;
+  if(pwaIsIOS()){
+    ttl.textContent='Telepítsd az appot';
+    sub.textContent='Oszd meg → Főképernyőhöz adás';
+    btn.textContent='Mutasd';
+  }else if(pwaDeferredPrompt){
+    ttl.textContent='Telepítsd az appot';
+    sub.textContent='Egy koppintással a kezdőképernyőn';
+    btn.textContent='Telepítés';
+  }else{
+    ttl.textContent='Telepítsd az appot';
+    sub.textContent='Böngészőmenü → Telepítés / Hozzáadás';
+    btn.textContent='Mutasd';
+  }
+}
+
+function pwaShouldAutoShow(){
+  if(pwaIsStandalone()) return false;
+  if(pwaGetPref()==='hide') return false;
+  return true;
+}
+function pwaMaybeAutoShow(){
+  if(!pwaShouldAutoShow()) return;
+  const el=document.getElementById('pwaBanner'); if(!el) return;
+  pwaUpdateBannerContent();
+  if(!el.classList.contains('on')) setTimeout(()=>el.classList.add('on'),900);
+}
+function pwaHideBanner(){
+  const el=document.getElementById('pwaBanner'); if(el) el.classList.remove('on');
+}
+window.pwaBannerClose=function(){
+  pwaHideBanner();
+  pwaSetPref('hide');
+};
+window.pwaBannerAction=function(){
+  if(pwaIsIOS()){ openPwaInfoModal(); return; }
+  if(pwaDeferredPrompt){
+    pwaHideBanner();
+    pwaDeferredPrompt.prompt();
+    pwaDeferredPrompt.userChoice.then(()=>{ pwaDeferredPrompt=null; }).catch(()=>{});
+  }else{
+    openPwaInfoModal();
+  }
+};
+window.openPwaInfoModal=function(){
+  const body=document.getElementById('pwaInfoBody');
+  const foot=document.getElementById('pwaInfoFooter');
+  if(!body||!foot) return;
+  if(pwaIsStandalone()){
+    body.innerHTML=`<div style="font-size:13px;color:var(--muted);line-height:1.6;text-align:center;padding:8px 0 4px">✅ Az app már telepítve van a kezdőképernyődre.</div>`;
+    foot.innerHTML=`<button class="pwaBtn" style="width:100%;padding:11px;border-radius:12px;" onclick="closePwaInfoModal()">Rendben</button>`;
+  }else if(pwaIsIOS()){
+    body.innerHTML=`
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Telepítsd a MONYK Family-t a kezdőképernyődre — utána böngésző nélkül, önálló appként nyílik meg.</div>
+      <div class="pwaStep"><div class="pwaStepNum">1</div><div class="pwaStepTxt">Koppints a Safari <b>Megosztás</b> ikonjára</div></div>
+      <div class="pwaStep"><div class="pwaStepNum">2</div><div class="pwaStepTxt">Válaszd: <b>„Főképernyőhöz adás”</b></div></div>
+      <div class="pwaStep"><div class="pwaStepNum">3</div><div class="pwaStepTxt">Koppints a <b>„Hozzáadás”</b> gombra</div></div>`;
+    foot.innerHTML=`<button class="pwaBtn" style="width:100%;padding:11px;border-radius:12px;" onclick="closePwaInfoModal()">Értem</button>`;
+  }else if(pwaDeferredPrompt){
+    body.innerHTML=`<div style="font-size:13px;color:var(--muted);line-height:1.6;text-align:center;padding:8px 0 4px">Telepítsd a MONYK Family-t a kezdőképernyődre — utána böngésző nélkül, önálló appként nyílik meg.</div>`;
+    foot.innerHTML=`<button class="pwaBtn" style="width:100%;padding:11px;border-radius:12px;" onclick="pwaBannerAction()">📲 Telepítés most</button>`;
+  }else{
+    body.innerHTML=`
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">Telepítsd a MONYK Family-t a kezdőképernyődre — utána böngésző nélkül, önálló appként nyílik meg.</div>
+      <div class="pwaStep"><div class="pwaStepNum">1</div><div class="pwaStepTxt">Nyisd meg a böngésző menüjét (⋮)</div></div>
+      <div class="pwaStep"><div class="pwaStepNum">2</div><div class="pwaStepTxt">Válaszd: <b>„Telepítés”</b> vagy <b>„Hozzáadás a kezdőképernyőhöz”</b></div></div>
+      <div class="pwaStep"><div class="pwaStepNum">3</div><div class="pwaStepTxt">Erősítsd meg a telepítést</div></div>`;
+    foot.innerHTML=`<button class="pwaBtn" style="width:100%;padding:11px;border-radius:12px;" onclick="closePwaInfoModal()">Értem</button>`;
+  }
+  document.getElementById('pwaInfoModalBg').classList.add('on');
+};
+window.closePwaInfoModal=function(){
+  document.getElementById('pwaInfoModalBg')?.classList.remove('on');
+};
+
+window.addEventListener('load', ()=>{ setTimeout(pwaMaybeAutoShow, 1200); });
+
 // ── PWA: service worker regisztralas ──
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -6568,7 +6976,11 @@ function famPinDigit(d){ MonykPin.pinDigit(d); }
 function famPinBackspace(){ MonykPin.pinBackspace(); }
 function famTryBiometric(){ MonykPin.tryBiometric(); }
 function famIsBiometricSupported(){ return MonykPin.isBiometricSupported(); }
-function famRenderSecuritySettings(){ MonykPin.renderSecuritySettings(); }
+function famRenderSecuritySettings(){
+  if (typeof MonykPin === 'undefined') { console.warn('[MONYK Family] MonykPin nincs betöltve (pin.js hiányzik?) — biztonsági szekció kihagyva.'); return; }
+  try { MonykPin.renderSecuritySettings(); }
+  catch(e) { console.warn('[MONYK Family] famRenderSecuritySettings hiba:', e); }
+}
 function famHandlePinButtonClick(){ MonykPin.handlePinButtonClick(); }
 function famHandleBioButtonClick(){ return MonykPin.handleBioButtonClick(); }
 function famStartupFlow(){ MonykPin.startupFlow(); }
@@ -7081,7 +7493,64 @@ function showOnboarding() {
     el.querySelector('#ob-kb-manual').classList.toggle('on', m==='manual');
   };
 }
-// ── END ONBOARDING ──────────────────────────────────────────
+</script>
+<!-- ── BOOTLOADER vezérlés — VÉGLEGES ── -->
+<script>
+(function(){
+  var el = document.getElementById('monykBoot');
+  var shellEl = document.querySelector('.shell');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var params;
+  try{ params = new URLSearchParams(window.location.search); }catch(e){ params = null; }
+  var isSwitchIn = params && params.get('monykSwitch') === '1';
+
+  if(isSwitchIn){
+    if(el) el.remove();
+    try{ sessionStorage.setItem('monyk_boot_seen','1'); }catch(e){ console.warn('[MONYK]', e); }
+    if(shellEl && !reduce){
+      shellEl.classList.add('switch-in');
+      shellEl.addEventListener('animationend', function(){ shellEl.classList.remove('switch-in'); }, { once:true });
+    }
+    try{ history.replaceState(null, '', window.location.pathname + window.location.hash); }catch(e){ console.warn('[MONYK]', e); }
+    return;
+  }
+
+  if(!el) return;
+  var seen;
+  try{ seen = sessionStorage.getItem('monyk_boot_seen'); }catch(e){ seen = null; }
+  if(reduce || seen){
+    el.remove();
+  } else {
+    setTimeout(function(){
+      el.classList.add('hiding');
+      setTimeout(function(){ el.remove(); }, 380);
+    }, 2050);
+    try{ sessionStorage.setItem('monyk_boot_seen','1'); }catch(e){ console.warn('[MONYK]', e); }
+  }
+})();
+</script>
+
+<!-- ── Pro app-váltó (2026-07-08) — átváltás a Finance/Travel appra ── -->
+<script>
+const MONYK_SWITCH_TARGETS = {
+  finance: { url: 'https://monyk.app/' },
+  travel:  { url: 'https://travel.monyk.app/' }
+};
+function monykSwitchTo(target){
+  const cfg = MONYK_SWITCH_TARGETS[target];
+  if(!cfg) return;
+  const targetUrl = cfg.url + (cfg.url.indexOf('?') === -1 ? '?' : '&') + 'monykSwitch=1';
+  const shellEl = document.querySelector('.shell');
+  if (shellEl) shellEl.classList.add('switch-out');
+  const doNavigate = () => {
+    try { window.parent.postMessage({ type:'MONYK_HARD_SWITCH', target: target, url: targetUrl }, '*'); } catch(e){ console.warn('[MONYK]', e); }
+    setTimeout(() => { try { window.location.href = targetUrl; } catch(e){ console.warn('[MONYK]', e); } }, 60);
+  };
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(doNavigate, reduce ? 0 : 230);
+}
+window.monykSwitchTo = monykSwitchTo;
 </script>
 </body>
 </html>

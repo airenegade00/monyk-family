@@ -30,7 +30,7 @@
   --sab:env(safe-area-inset-bottom,0px);
 }
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);}
-.shell{position:fixed;inset:0;display:flex;flex-direction:column;max-width:430px;margin:0 auto;background:var(--bg);}
+.shell{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);}
 button{font-family:inherit;}
 
 /* ─── PAIRING SCREEN ─── */
@@ -273,6 +273,13 @@ const IN_CATS = [
   { id:'egyeb',   ikon:'📦', lbl:'Egyéb' }
 ];
 
+// Helyi (nem UTC) dátum YYYY-MM-DD formátumban. A korábbi new Date().toISOString().slice(0,10)
+// UTC-re konvertált, ami DE/AT/CH (UTC+1/+2) időzónában éjfél után egy nappal korábbi dátumot
+// adott vissza. Lásd changelog 2026-07-07.
+function localYMD(d) {
+  d = d || new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 function initAuth() {
   return new Promise(resolve => {
     fbAuth.onAuthStateChanged(user => {
@@ -533,7 +540,7 @@ async function saveEntry() {
   const cats = addType === 'bevetel' ? IN_CATS : OUT_CATS;
   const cat = cats.find(c => c.id === selectedCat);
   const nev = document.getElementById('nameInput').value.trim();
-  const today = new Date().toISOString().slice(0,10);
+  const today = localYMD();
   const payload = {
     kidId: kidId,
     nev: nev,
